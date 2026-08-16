@@ -1,1 +1,4 @@
-company-wise
+data/
+.venv/
+__pycache__/
+*.py[cod]
