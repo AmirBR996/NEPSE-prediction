@@ -3,3 +3,5 @@ requests
 lxml
 beautifulsoup4
 black
+scikit-learn
+torch
