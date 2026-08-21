@@ -17,7 +17,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     train_loader, test_loader, _, _ = build_pipeline(
-        csv_path=str(Path(__file__).resolve().parents[1] / "data" / "ADBL.csv"),
+        csv_path=str(Path(__file__).resolve().parents[1] / "data.csv"),
         batch_size=32,
     )
 
