@@ -3,3 +3,7 @@ data/
 **__pycache__/
 *.py[cod]
 data.csv
+stock_lstm.pth
+scaler_X.joblib
+scaler_y.joblib
+
