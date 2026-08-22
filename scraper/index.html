@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEPSE Neural Analytics Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/js/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row">
+
+    <aside id="appSidebar" class="w-full md:w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800">
+        <div>
+            <div class="h-16 flex items-center px-6 border-b border-slate-800 space-x-3">
+                <div class="p-2 bg-brand-500/20 text-brand-500 rounded-lg">
+                    <i data-lucide="line-chart" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white text-base leading-tight">NEPSE Studio</h1>
+                    <span id="roleBadge" class="text-xs text-brand-500 font-semibold uppercase">User Access</span>
+                </div>
+            </div>
+
+            <nav class="p-4 space-y-1">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-brand-600 text-white">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    <span>Market Dashboard</span>
+                </button>
+                <button onclick="switchTab('prediction')" id="nav-prediction" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="cpu" class="w-4 h-4"></i>
+                    <span>AI Prediction Studio</span>
+                </button>
+                <button onclick="switchTab('admin')" id="nav-admin" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i data-lucide="database" class="w-4 h-4"></i>
+                    <span>Data & Model Admin</span>
+                </button>
+            </nav>
+        </div>
+
+        <div class="p-4 border-t border-slate-800 space-y-3">
+            <div class="text-xs text-slate-400 flex items-center space-x-2">
+                <i data-lucide="user" class="w-4 h-4 text-brand-500"></i>
+                <span id="currentUserLabel">Active: User Mode</span>
+            </div>
+            <button onclick="switchTab('auth')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-xs font-medium flex items-center justify-center space-x-2">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                <span>Sign Out / Switch</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-6 md:p-8">
+
+        <section id="page-auth" class="max-w-md mx-auto my-8 bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+            <div class="text-center mb-6">
+                <div class="inline-flex p-3 bg-brand-50 text-brand-600 rounded-full mb-3">
+                    <i data-lucide="shield-check" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-xl font-bold text-slate-900" id="authTitle">Welcome Back</h2>
+                <p class="text-xs text-slate-500 mt-1">Access NEPSE Deep Learning Models & Data</p>
+            </div>
+
+            <div class="grid grid-cols-2 bg-slate-100 p-1 rounded-lg text-xs font-medium mb-6">
+                <button id="btnTabLogin" onclick="toggleAuthMode('login')" class="py-2 rounded-md bg-white text-slate-800 shadow-sm">Sign In</button>
+                <button id="btnTabRegister" onclick="toggleAuthMode('register')" class="py-2 rounded-md text-slate-500">Register</button>
+            </div>
+
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Account Role</label>
+                    <select id="authRole" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
+                        <option value="user">Standard User (View & Forecast)</option>
+                        <option value="admin">Administrator (Manage Data & Retrain)</option>
+                    </select>
+                </div>
+
+                <div id="fieldName" class="hidden">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Full Name</label>
+                    <input type="text" placeholder="John Doe" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email Address</label>
+                    <input type="email" required placeholder="name@nepse.com" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>
+                    <input type="password" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+
+                <button type="submit" id="authSubmitBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors">
+                    Sign In
+                </button>
+            </form>
+        </section>
+
+
+        <section id="page-dashboard" class="space-y-6 hidden">
+            <header class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Historical Market Dashboard</h2>
+                    <p class="text-sm text-slate-500">Full 372 record dataset scraped from sharesansar.com</p>
+                </div>
+            </header>
+
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="h-80">
+                    <canvas id="historicalChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+
+        <section id="page-prediction" class="space-y-6 hidden">
+            <header>
+                <h2 class="text-2xl font-bold text-slate-900">AI Deep Learning Prediction</h2>
+                <p class="text-sm text-slate-500">Forecast stock prices using LSTM, GRU, or Transformer models</p>
+            </header>
+
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="h-72">
+                    <canvas id="predictionChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+
+        <section id="page-admin" class="space-y-6 hidden">
+            <header>
+                <h2 class="text-2xl font-bold text-slate-900">Dataset & Model Training Pipeline</h2>
+                <p class="text-sm text-slate-500">Admin Control Panel for scraper updates and pipeline execution</p>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-semibold text-slate-800 border-b pb-2">Web Scraper Control</h3>
+                    <button class="w-full bg-slate-900 text-white py-2 rounded-lg text-sm">Sync Sharesansar Data</button>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-semibold text-slate-800 border-b pb-2">Retrain Models</h3>
+                    <button class="w-full bg-brand-600 text-white py-2 rounded-lg text-sm">Execute Training (LSTM/GRU/Transformer)</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        let authMode = 'login'; // 'login' or 'register'
+
+        function toggleAuthMode(mode) {
+            authMode = mode;
+            const btnLogin = document.getElementById('btnTabLogin');
+            const btnRegister = document.getElementById('btnTabRegister');
+            const fieldName = document.getElementById('fieldName');
+            const authTitle = document.getElementById('authTitle');
+            const authSubmitBtn = document.getElementById('authSubmitBtn');
+
+            if (mode === 'register') {
+                btnLogin.className = "py-2 rounded-md text-slate-500";
+                btnRegister.className = "py-2 rounded-md bg-white text-slate-800 shadow-sm";
+                fieldName.classList.remove('hidden');
+                authTitle.innerText = "Create Your Account";
+                authSubmitBtn.innerText = "Register Account";
+            } else {
+                btnRegister.className = "py-2 rounded-md text-slate-500";
+                btnLogin.className = "py-2 rounded-md bg-white text-slate-800 shadow-sm";
+                fieldName.classList.add('hidden');
+                authTitle.innerText = "Welcome Back";
+                authSubmitBtn.innerText = "Sign In";
+            }
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const role = document.getElementById('authRole').value;
+            const navAdmin = document.getElementById('nav-admin');
+            const roleBadge = document.getElementById('roleBadge');
+            const currentUserLabel = document.getElementById('currentUserLabel');
+
+            // Hide/Show Admin Tab according to selected Role
+            if (role === 'admin') {
+                navAdmin.classList.remove('hidden');
+                roleBadge.innerText = "Admin Access";
+                roleBadge.className = "text-xs text-amber-500 font-semibold uppercase";
+                currentUserLabel.innerText = "Active: Admin Mode";
+            } else {
+                navAdmin.classList.add('hidden');
+                roleBadge.innerText = "User Access";
+                roleBadge.className = "text-xs text-brand-500 font-semibold uppercase";
+                currentUserLabel.innerText = "Active: User Mode";
+            }
+
+            switchTab('dashboard');
+        }
+
+        function switchTab(tabId) {
+            const sidebar = document.getElementById('appSidebar');
+
+            if (tabId === 'auth') {
+                sidebar.classList.add('hidden');
+            } else {
+                sidebar.classList.remove('hidden');
+            }
+
+            ['auth', 'dashboard', 'prediction', 'admin'].forEach(id => {
+                const el = document.getElementById(`page-${id}`);
+                if (el) el.classList.add('hidden');
+                
+                const navBtn = document.getElementById(`nav-${id}`);
+                if (navBtn) {
+                    navBtn.classList.remove('bg-brand-600', 'text-white');
+                    navBtn.classList.add('text-slate-400');
+                }
+            });
+
+            document.getElementById(`page-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-brand-600', 'text-white');
+                activeBtn.classList.remove('text-slate-400');
+            }
+        }
+
+        // Initialize Charts
+        window.onload = () => {
+            switchTab('auth'); // Start on Login page
+
+            const ctxHist = document.getElementById('historicalChart').getContext('2d');
+            new Chart(ctxHist, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 30}, (_, i) => `Day ${i + 1}`),
+                    datasets: [{
+                        label: 'Historical Share Price (NPR)',
+                        data: Array.from({length: 30}, (_, i) => 520 + Math.sin(i / 2) * 40 + i * 2),
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.05)',
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const ctxPred = document.getElementById('predictionChart').getContext('2d');
+            new Chart(ctxPred, {
+                type: 'line',
+                data: {
+                    labels: ['T-3', 'T-2', 'T-1', 'Today', 'T+1 (Pred)', 'T+2 (Pred)'],
+                    datasets: [
+                        { label: 'Actual Price', data: [570, 575, 580, 585, null, null], borderColor: '#0f172a' },
+                        { label: 'Transformer Prediction', data: [null, null, null, 585, 589, 592], borderColor: '#22c55e', borderDash: [4, 4] }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        };
+    </script>
+</body>
+</html>
