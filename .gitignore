@@ -2,8 +2,7 @@ data/
 .venv/
 **__pycache__/
 *.py[cod]
-data.csv
-stock_lstm.pth
-scaler_X.joblib
-scaler_y.joblib
+**.pth
+**.joblib
+**.joblib
 

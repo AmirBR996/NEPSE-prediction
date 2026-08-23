@@ -10,8 +10,8 @@ import torch
 import torch.nn as nn
 from torch.optim import Adam
 
-from feature import build_pipeline
-from model import StockLSTM
+from data_preprocessing.feature import build_pipeline
+from models.lstm import StockLSTM
 
 
 def main():
