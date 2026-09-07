@@ -22,13 +22,11 @@ class StockLSTM(nn.Module):
     )
 
   def forward(self, x):
-    # If single time-step [batch_size, features], convert to [batch_size, 1, features]
     if x.dim() == 2:
       x = x.unsqueeze(1)
 
     out, _ = self.lstm(x)
 
-    # Take the output state of the last time step in the sequence
     out = out[:, -1, :]
 
     return self.fc(out)

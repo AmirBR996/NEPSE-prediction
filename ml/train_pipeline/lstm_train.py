@@ -11,20 +11,18 @@ import torch.nn as nn
 from torch.optim import Adam
 
 from data_preprocessing.feature import build_pipeline
-from models.lstm import StockLSTM
+from model.lstm import StockLSTM
 
 
 def main():
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   print("Using device:", device)
 
-  # 1. Load pipeline and get fitted scalers
   train_loader, test_loader, scaler_X, scaler_y = build_pipeline(
       csv_path=str(ROOT / "data" / "ADBL.csv"),
       batch_size=32,
   )
 
-  # 2. Dynamically extract feature dimension from first batch
   X_sample, _ = next(iter(train_loader))
   input_dim = X_sample.shape[-1]
 
@@ -39,7 +37,6 @@ def main():
   optimizer = Adam(model.parameters(), lr=0.0001)
   epochs = 300
 
-  # 3. Training loop
   for epoch in range(epochs):
     model.train()
     train_loss = 0.0
@@ -75,7 +72,6 @@ def main():
         f"Test Loss: {test_loss:.6f}"
     )
 
-  # 4. Save Model Checkpoint and Scalers
   save_path = ROOT / "stock_lstm.pth"
   torch.save(model.state_dict(), save_path)
   joblib.dump(scaler_X, ROOT / "scaler_X.joblib")

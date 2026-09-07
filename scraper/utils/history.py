@@ -7,15 +7,10 @@ _ORDER = ["published_date"] + _FLOAT_COLS + ["status"]
 
 
 class AuthError(Exception):
-    """Raised when the history API returns an error body (e.g. CSRF mismatch)
-    instead of a valid DataTables response. Signals the caller to refresh the
-    session token and retry."""
+    pass
 
 
 def records_total(resp_json):
-    """Return recordsTotal from a history-API response, or raise AuthError if
-    the response is an error payload (no recordsTotal — e.g. CSRF mismatch,
-    which the server returns as HTTP 200 with a 'message')."""
     if "recordsTotal" not in resp_json:
         raise AuthError(resp_json.get("message", "missing recordsTotal"))
     return resp_json["recordsTotal"]

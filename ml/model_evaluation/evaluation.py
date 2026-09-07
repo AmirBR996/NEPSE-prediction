@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-# Project root: /home/amir/stock
 ROOT = Path(__file__).resolve().parents[1]
 
 if str(ROOT) not in sys.path:
@@ -18,9 +17,9 @@ import pandas as pd
 import torch
 
 from data_preprocessing.feature import build_pipeline
-from models.lstm import StockLSTM
-from models.gru import StockGRU
-from models.transformer import StockTransformer
+from model.lstm import StockLSTM
+from model.gru import StockGRU
+from model.transformer import StockTransformer
 
 
 def evaluate_model(model, test_loader, scaler_y, device):
@@ -56,7 +55,6 @@ def evaluate_model(model, test_loader, scaler_y, device):
         axis=0
     )
 
-    # Convert scaled returns back to original returns
     pred_returns = scaler_y.inverse_transform(
         preds_scaled
     ).flatten()
@@ -76,7 +74,6 @@ def reconstruct_prices(
 
     n_samples = len(pred_returns)
 
-    # Match samples with corresponding test rows
     eval_df = test_df.iloc[-n_samples:].copy()
 
     plot_dates = eval_df[
@@ -87,13 +84,11 @@ def reconstruct_prices(
         "close"
     ].values
 
-    # Reconstruct previous day's close
     prev_close_prices = (
         actual_prices
         / (1.0 + actual_returns)
     )
 
-    # Reconstruct predicted prices
     predicted_prices = (
         prev_close_prices
         * (1.0 + pred_returns)
@@ -113,7 +108,6 @@ def calculate_metrics(
     actual_returns
 ):
 
-    # Price MAE
     mae_price = np.mean(
         np.abs(
             predicted_prices
@@ -121,7 +115,6 @@ def calculate_metrics(
         )
     )
 
-    # Price RMSE
     rmse_price = np.sqrt(
         np.mean(
             (
@@ -131,7 +124,6 @@ def calculate_metrics(
         )
     )
 
-    # Directional Accuracy
     direction_acc = (
         np.mean(
             np.sign(pred_returns)
@@ -148,11 +140,6 @@ def calculate_metrics(
 
 
 def main():
-
-    # ==================================================
-    # DEVICE
-    # ==================================================
-
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
@@ -166,10 +153,6 @@ def main():
             "GPU:",
             torch.cuda.get_device_name(0)
         )
-
-    # ==================================================
-    # PATHS
-    # ==================================================
 
     csv_path = (
         ROOT
@@ -200,10 +183,6 @@ def main():
         / "scaler_y.joblib"
     )
 
-    # ==================================================
-    # LOAD DATA PIPELINE
-    # ==================================================
-
     print("\nLoading data...")
 
     (
@@ -217,7 +196,6 @@ def main():
         seq_length=30
     )
 
-    # Load same target scaler used during training
     if scaler_y_path.exists():
 
         scaler_y = joblib.load(
@@ -234,10 +212,6 @@ def main():
             "Warning: scaler_y.joblib not found."
         )
 
-    # ==================================================
-    # LOAD DATAFRAME
-    # ==================================================
-
     df = pd.read_csv(
         csv_path
     )
@@ -252,7 +226,6 @@ def main():
         .reset_index(drop=True)
     )
 
-    # Same target calculation used in feature.py
     df["target"] = (
         df["close"]
         .pct_change()
@@ -270,10 +243,6 @@ def main():
         .reset_index(drop=True)
     )
 
-    # ==================================================
-    # TEST DATA
-    # ==================================================
-
     test_df = df[
         df["published_date"]
         >= "2026-01-01"
@@ -283,10 +252,6 @@ def main():
         "Test dataframe samples:",
         len(test_df)
     )
-
-    # ==================================================
-    # INPUT DIMENSION
-    # ==================================================
 
     X_sample, _ = next(
         iter(test_loader)
@@ -298,10 +263,6 @@ def main():
         "Input features:",
         input_dim
     )
-
-    # ==================================================
-    # LOAD LSTM
-    # ==================================================
 
     print("\nLoading LSTM...")
 
@@ -326,10 +287,6 @@ def main():
         lstm_model_path
     )
 
-    # ==================================================
-    # LOAD GRU
-    # ==================================================
-
     print("\nLoading GRU...")
 
     gru = StockGRU(
@@ -352,10 +309,6 @@ def main():
         "GRU loaded:",
         gru_model_path
     )
-
-    # ==================================================
-    # LOAD TRANSFORMER
-    # ==================================================
 
     print("\nLoading Transformer...")
 
@@ -382,10 +335,6 @@ def main():
         transformer_model_path
     )
 
-    # ==================================================
-    # LSTM PREDICTIONS
-    # ==================================================
-
     print(
         "\nGenerating LSTM predictions..."
     )
@@ -399,10 +348,6 @@ def main():
         scaler_y,
         device
     )
-
-    # ==================================================
-    # GRU PREDICTIONS
-    # ==================================================
 
     print(
         "Generating GRU predictions..."
@@ -418,10 +363,6 @@ def main():
         device
     )
 
-    # ==================================================
-    # TRANSFORMER PREDICTIONS
-    # ==================================================
-
     print(
         "Generating Transformer predictions..."
     )
@@ -436,10 +377,6 @@ def main():
         device
     )
 
-    # ==================================================
-    # RECONSTRUCT LSTM PRICES
-    # ==================================================
-
     (
         lstm_pred_prices,
         actual_prices,
@@ -449,10 +386,6 @@ def main():
         lstm_actual_returns,
         test_df
     )
-
-    # ==================================================
-    # RECONSTRUCT GRU PRICES
-    # ==================================================
 
     (
         gru_pred_prices,
@@ -464,10 +397,6 @@ def main():
         test_df
     )
 
-    # ==================================================
-    # RECONSTRUCT TRANSFORMER PRICES
-    # ==================================================
-
     (
         transformer_pred_prices,
         _,
@@ -477,10 +406,6 @@ def main():
         transformer_actual_returns,
         test_df
     )
-
-    # ==================================================
-    # LSTM METRICS
-    # ==================================================
 
     (
         lstm_mae,
@@ -493,10 +418,6 @@ def main():
         lstm_actual_returns
     )
 
-    # ==================================================
-    # GRU METRICS
-    # ==================================================
-
     (
         gru_mae,
         gru_rmse,
@@ -508,10 +429,6 @@ def main():
         gru_actual_returns
     )
 
-    # ==================================================
-    # TRANSFORMER METRICS
-    # ==================================================
-
     (
         transformer_mae,
         transformer_rmse,
@@ -522,10 +439,6 @@ def main():
         transformer_pred_returns,
         transformer_actual_returns
     )
-
-    # ==================================================
-    # PRINT RESULTS
-    # ==================================================
 
     print("\n")
     print("=" * 60)
@@ -586,16 +499,11 @@ def main():
         f"{transformer_direction:.2f}%"
     )
 
-    # ==================================================
-    # WINNER BY METRIC
-    # ==================================================
-
     print("\n")
     print("=" * 60)
     print("                 WINNERS")
     print("=" * 60)
 
-    # MAE
     mae_results = {
         "LSTM": lstm_mae,
         "GRU": gru_mae,
@@ -613,7 +521,6 @@ def main():
         f"({mae_results[best_mae_model]:.4f})"
     )
 
-    # RMSE
     rmse_results = {
         "LSTM": lstm_rmse,
         "GRU": gru_rmse,
@@ -631,7 +538,6 @@ def main():
         f"({rmse_results[best_rmse_model]:.4f})"
     )
 
-    # Directional Accuracy
     direction_results = {
         "LSTM": lstm_direction,
         "GRU": gru_direction,
@@ -643,23 +549,12 @@ def main():
         key=direction_results.get
     )
 
-    print(
-        f"Best Directional Accuracy: "
-        f"{best_direction_model} "
-        f"({direction_results[best_direction_model]:.2f}%)"
-    )
-
     print("=" * 60)
-
-    # ==================================================
-    # SINGLE COMPARISON GRAPH
-    # ==================================================
 
     plt.figure(
         figsize=(15, 7)
     )
 
-    # Actual price
     plt.plot(
         plot_dates,
         actual_prices,
@@ -667,7 +562,6 @@ def main():
         linewidth=2.0
     )
 
-    # LSTM
     plt.plot(
         plot_dates,
         lstm_pred_prices,
@@ -676,7 +570,6 @@ def main():
         linewidth=1.5
     )
 
-    # GRU
     plt.plot(
         plot_dates,
         gru_pred_prices,
@@ -685,7 +578,6 @@ def main():
         linewidth=1.8
     )
 
-    # Transformer
     plt.plot(
         plot_dates,
         transformer_pred_prices,

@@ -22,14 +22,11 @@ class StockGRU(nn.Module):
         )
 
     def forward(self, x):
-        # If single time-step [batch_size, features],
-        # convert to [batch_size, 1, features]
         if x.dim() == 2:
             x = x.unsqueeze(1)
 
         out, _ = self.gru(x)
 
-        # Take output from the last time step
         out = out[:, -1, :]
 
         return self.fc(out)

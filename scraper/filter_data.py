@@ -6,12 +6,11 @@ from pathlib import Path
 
 
 def count_rows(csv_path: Path) -> int:
-    """Return the number of data rows in a CSV file, excluding the header."""
     try:
         with csv_path.open("r", newline="", encoding="utf-8") as file:
             reader = csv.reader(file)
             try:
-                next(reader)  # skip header
+                next(reader)
             except StopIteration:
                 return 0
             return sum(1 for _ in reader)

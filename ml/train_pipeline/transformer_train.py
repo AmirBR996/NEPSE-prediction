@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-# Project root: /home/amir/stock
 ROOT = Path(__file__).resolve().parents[1]
 
 if str(ROOT) not in sys.path:
@@ -12,15 +11,10 @@ import torch.nn as nn
 from torch.optim import Adam
 
 from data_preprocessing.feature import build_pipeline
-from models.transformer import StockTransformer
+from model.transformer import StockTransformer
 
 
 def main():
-
-    # ==================================================
-    # Device
-    # ==================================================
-
     device = torch.device(
         "cuda" if torch.cuda.is_available()
         else "cpu"
@@ -34,10 +28,6 @@ def main():
             torch.cuda.get_device_name(0)
         )
 
-    # ==================================================
-    # Load data
-    # ==================================================
-
     train_loader, test_loader, scaler_X, scaler_y = (
         build_pipeline(
             csv_path=str(
@@ -47,10 +37,6 @@ def main():
             seq_length=30,
         )
     )
-
-    # ==================================================
-    # Determine input dimension
-    # ==================================================
 
     X_sample, y_sample = next(
         iter(train_loader)
@@ -73,10 +59,6 @@ def main():
         input_dim
     )
 
-    # ==================================================
-    # Create Transformer
-    # ==================================================
-
     model = StockTransformer(
         input_size=input_dim,
         d_model=64,
@@ -89,10 +71,6 @@ def main():
     print("\nModel:")
     print(model)
 
-    # ==================================================
-    # Loss and optimizer
-    # ==================================================
-
     criterion = nn.MSELoss()
 
     optimizer = Adam(
@@ -101,10 +79,6 @@ def main():
     )
 
     epochs = 300
-
-    # ==================================================
-    # Training
-    # ==================================================
 
     for epoch in range(epochs):
 
@@ -117,32 +91,22 @@ def main():
             X = X.to(device)
             y = y.to(device)
 
-            # Clear gradients
             optimizer.zero_grad()
 
-            # Forward pass
             output = model(X)
 
-            # Calculate loss
             loss = criterion(
                 output,
                 y
             )
 
-            # Backpropagation
             loss.backward()
 
-            # Update weights
             optimizer.step()
 
             train_loss += loss.item()
 
-        # Average training loss
         train_loss /= len(train_loader)
-
-        # ==================================================
-        # Test evaluation
-        # ==================================================
 
         model.eval()
 
@@ -164,22 +128,13 @@ def main():
 
                 test_loss += loss.item()
 
-        # Average test loss
         test_loss /= len(test_loader)
-
-        # ==================================================
-        # Print progress
-        # ==================================================
 
         print(
             f"Epoch [{epoch + 1}/{epochs}] "
             f"Train Loss: {train_loss:.6f} "
             f"Test Loss: {test_loss:.6f}"
         )
-
-    # ==================================================
-    # Save model
-    # ==================================================
 
     model_dir = (
         ROOT / "trained_models"

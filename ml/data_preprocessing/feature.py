@@ -9,15 +9,12 @@ def features(df):
   df["published_date"] = pd.to_datetime(df["published_date"])
   df = df.sort_values("published_date").reset_index(drop=True)
 
-  # Target: Next-day percentage return
   df["target"] = df["close"].pct_change().shift(-1)
 
-  # Stationarity / Returns Features
   df["return_1"] = df["close"].pct_change(1)
   df["return_5"] = df["close"].pct_change(5)
   df["return_10"] = df["close"].pct_change(10)
 
-  # Clean NaNs caused by percentage shifts
   df = df.dropna(
       subset=["return_1", "return_5", "return_10", "target"]
   ).reset_index(drop=True)
@@ -26,12 +23,6 @@ def features(df):
 
 
 def create_sequences(X_data, y_data, seq_length=30):
-  """Converts 2D feature array into 3D sequence window tensors.
-
-  Shape transformation:
-    X: [N, num_features] -> [N - seq_length, seq_length, num_features]
-    y: [N, 1]            -> [N - seq_length, 1]
-  """
   X_seq, y_seq = [], []
   for i in range(len(X_data) - seq_length):
     X_seq.append(X_data[i : i + seq_length])
@@ -61,7 +52,6 @@ def splitting_and_processing(df, seq_length=30):
   X_test_raw = test[feature_cols].values
   y_test_raw = test["target"].values.reshape(-1, 1)
 
-  # Scale features before windowing
   X_scaler = StandardScaler()
   y_scaler = StandardScaler()
 
@@ -71,7 +61,6 @@ def splitting_and_processing(df, seq_length=30):
   y_train_scaled = y_scaler.fit_transform(y_train_raw)
   y_test_scaled = y_scaler.transform(y_test_raw)
 
-  # Build 3D sliding sequence windows
   X_train_seq, y_train_seq = create_sequences(
       X_train_scaled, y_train_scaled, seq_length=seq_length
   )
@@ -103,7 +92,6 @@ def create_dataloaders(X_train, y_train, X_test, y_test, batch_size=32):
   train_dataset = TensorDataset(X_train, y_train)
   test_dataset = TensorDataset(X_test, y_test)
 
-  # Keep shuffle=False for time-series memory stability
   train_loader = DataLoader(
       train_dataset, batch_size=batch_size, shuffle=False
   )
@@ -142,5 +130,5 @@ if __name__ == "__main__":
   )
   X_batch, y_batch = next(iter(train_loader))
 
-  print("3D Sequence Batch Shape (X):", X_batch.shape)  # [32, 30, 8]
-  print("Target Batch Shape (y):    ", y_batch.shape)  # [32, 1]
+  print("3D Sequence Batch Shape (X):", X_batch.shape)
+  print("Target Batch Shape (y):    ", y_batch.shape)
