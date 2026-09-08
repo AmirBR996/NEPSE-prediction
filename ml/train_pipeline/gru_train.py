@@ -1,12 +1,12 @@
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ML_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = ML_ROOT.parent
 
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+if str(ML_ROOT) not in sys.path:
+    sys.path.insert(0, str(ML_ROOT))
 
-import joblib
 import torch
 import torch.nn as nn
 from torch.optim import Adam
@@ -15,13 +15,13 @@ from data_preprocessing.feature import build_pipeline
 from model.gru import StockGRU
 
 
-def main():
+def main(data):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
     train_loader, test_loader, scaler_X, scaler_y = build_pipeline(
-        csv_path=str(ROOT / "data" / "ADBL.csv"),
+        csv_path=str(PROJECT_ROOT / "data" / f"{data}.csv"),
         batch_size=32,
     )
 
@@ -44,7 +44,7 @@ def main():
         lr=0.0001
     )
 
-    epochs = 300
+    epochs = 100
 
     for epoch in range(epochs):
 
@@ -94,7 +94,7 @@ def main():
             f"Test Loss: {test_loss:.6f}"
         )
 
-    model_dir = ROOT / "trained_models"
+    model_dir = PROJECT_ROOT / "trained_models" / data
     model_dir.mkdir(parents=True, exist_ok=True)
 
     save_path = model_dir / "stock_gru.pth"
@@ -105,7 +105,3 @@ def main():
     )
 
     print(f"Model saved to: {save_path}")
-
-
-if __name__ == "__main__":
-    main()

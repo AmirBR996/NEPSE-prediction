@@ -5,4 +5,4 @@ data/
 **.pth
 **.joblib
 **.joblib
-
+trained_models

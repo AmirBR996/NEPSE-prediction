@@ -1,10 +1,11 @@
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ML_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = ML_ROOT.parent
 
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+if str(ML_ROOT) not in sys.path:
+    sys.path.insert(0, str(ML_ROOT))
 
 import joblib
 import matplotlib
@@ -154,34 +155,15 @@ def main():
             torch.cuda.get_device_name(0)
         )
 
-    csv_path = (
-        ROOT
-        / "data"
-        / "ADBL.csv"
-    )
+    csv_path = PROJECT_ROOT / "data" / "ADBL.csv"
 
-    lstm_model_path = (
-        ROOT
-        / "trained_models"
-        / "stock_lstm.pth"
-    )
+    lstm_model_path = PROJECT_ROOT / "trained_models" / "stock_lstm.pth"
 
-    gru_model_path = (
-        ROOT
-        / "trained_models"
-        / "stock_gru.pth"
-    )
+    gru_model_path = PROJECT_ROOT / "trained_models" / "stock_gru.pth"
 
-    transformer_model_path = (
-        ROOT
-        / "trained_models"
-        / "stock_transformer.pth"
-    )
+    transformer_model_path = PROJECT_ROOT / "trained_models" / "stock_transformer.pth"
 
-    scaler_y_path = (
-        ROOT
-        / "scaler_y.joblib"
-    )
+    scaler_y_path = PROJECT_ROOT / "scaler_y.joblib"
 
     print("\nLoading data...")
 

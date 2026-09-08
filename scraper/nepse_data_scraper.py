@@ -1,8 +1,15 @@
 import time
 import requests
+import sys
 from pathlib import Path
 
 import pandas as pd
+
+SCRAPER_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRAPER_DIR.parent
+
+if str(SCRAPER_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRAPER_DIR))
 
 from constants.companyIdMap import companyIdMap
 from constants.url import historyUrl
@@ -10,7 +17,7 @@ from utils.session import make_session, prime_session, TIMEOUT
 from utils.params import build_history_payload
 from utils.history import page_starts, records_to_dataframe, records_total, AuthError
 
-OUT_DIR = Path("../data/")
+OUT_DIR = PROJECT_ROOT / "data"
 PAGE_SIZE = 50
 DELAY = 0.3
 MAX_ATTEMPTS = 4
