@@ -1,47 +1,56 @@
-# Stock Price Prediction with Deep Learning
+# Stock Prediction Platform
 
-Predict next-day stock prices using sequence-based deep learning models (LSTM, GRU, Transformer) on NEPSE historical data.
+FastAPI backend, static frontend, NEPSE scraping utilities, and PyTorch training pipelines for stock price prediction.
 
-## Project Structure
+## Overview
+
+This repository combines three parts:
+
+1. A FastAPI backend for authentication, data scraping, and model retraining.
+2. A static browser UI for viewing market data and triggering prediction workflows.
+3. ML training code for LSTM, GRU, and Transformer models trained on NEPSE historical data.
+
+## Repository Layout
 
 ```
 stock/
+├── backend/
+│   ├── auth.py
+│   ├── database.py
+│   ├── main.py
+│   ├── model.py
+│   └── routes/
+│       ├── auth.py
+│       ├── scrape.py
+│       └── train.py
+├── frontend/
+│   ├── app.js
+│   ├── index.html
+│   └── style.css
+├── scraper/
+│   ├── nepse_data_scraper.py
+│   ├── filter_data.py
+│   ├── config/
+│   ├── constants/
+│   └── utils/
+├── ml/
+│   ├── data_preprocessing/
+│   ├── model/
+│   ├── model_evaluation/
+│   └── train_pipeline/
 ├── data/
-│   └── ADBL.csv                 # ADBL historical OHLCV data (~4k rows)
-├── data_preprocessing/
-│   └── feature.py               # Feature engineering, sequences, scalers, DataLoaders
-├── models/
-│   ├── lstm.py                  # LSTM model
-│   ├── gru.py                   # GRU model
-│   └── transformer.py           # Transformer model with positional encoding
-├── train/
-│   ├── lstm_train.py            # Train LSTM
-│   ├── gru_train.py             # Train GRU
-│   └── transformer_train.py     # Train Transformer
-├── evaluation/
-│   └── evaluation.py            # Evaluate all 3 models and compare
+├── scaler_files/
 ├── trained_models/
-│   ├── stock_lstm.pth
-│   ├── stock_gru.pth
-│   └── stock_transformer.pth
-├── files/
-│   ├── scaler_X.joblib
-│   └── scaler_y.joblib
-├── lstm_gru_transformer_comparison.png  # Comparison plot
-├── requirement.txt
-└── .gitignore
+└── requirement.txt
 ```
 
-## Features
+## What It Does
 
-- **Sequence windowing**: 30-day sliding windows as input sequences
-- **Return-based target**: Predicts next-day percentage return instead of raw price
-- **Standardized features**: `StandardScaler` fitted on training data only
-- **3 model architectures**:
-  - LSTM (2-layer, hidden=64)
-  - GRU (2-layer, hidden=64)
-  - Transformer (2-layer, d_model=64, 4 heads)
-- **Unified evaluation**: Price MAE, RMSE, and directional accuracy
+- Authenticates users with JWT-backed login and registration.
+- Scrapes historical NEPSE data and stores it locally.
+- Retrains LSTM, GRU, or Transformer models from the backend.
+- Serves a browser UI for dashboard and prediction workflows.
+- Stores trained weights and scaler artifacts per company/model.
 
 ## Installation
 
@@ -51,51 +60,54 @@ source .venv/bin/activate
 pip install -r requirement.txt
 ```
 
-## Usage
+The project uses Python 3.14 in the current workspace.
 
-### Train a model
+## Run The Backend
 
-```bash
-# LSTM
-python train/lstm_train.py
-
-# GRU
-python train/gru_train.py
-
-# Transformer
-python train/transformer_train.py
-```
-
-Each script:
-1. Loads `data/ADBL.csv`
-2. Builds 30-day sequence windows
-3. Scales features and targets
-4. Trains for 300 epochs (Adam, lr=1e-4, MSE loss)
-5. Saves model weights to `trained_models/`
-
-### Evaluate and compare
+Start the API from the repository root:
 
 ```bash
-python evaluation/evaluation.py
+uvicorn backend.main:app --reload
 ```
 
-This loads all three trained models, generates predictions on the test set, and prints:
-- Price MAE / RMSE for each model
-- Directional accuracy (% of correct up/down predictions)
-- Winner by each metric
+The backend currently exposes these route groups:
 
-Outputs `lstm_gru_transformer_comparison.png` with actual vs predicted prices.
+- `GET /` health check
+- `/auth` register, login, me, admin
+- `/scrape` trigger NEPSE scraping
+- `/train` trigger model training
 
-## Data
+## Run The Frontend
 
-- **File**: `data/ADBL.csv`
-- **Rows**: ~3,600
-- **Features used**: `open`, `high`, `low`, `traded_quantity`, `traded_amount`, `return_1`, `return_5`, `return_10`
-- **Target**: Next-day percentage return (`close.pct_change().shift(-1)`)
-- **Split**: Train (< 2026-01-01), Test (>= 2026-01-01)
+The frontend is a static HTML/CSS/JS app in `frontend/`.
+
+Open `frontend/index.html` with a static server or a live preview extension. If the frontend is served from a different origin, set `API_BASE` in `frontend/app.js` to the backend URL.
+
+## Training And Data
+
+The repository contains pre-trained model artifacts in `trained_models/` and scaler files in both `scaler_files/` and `ml/scaler_files/`.
+
+The training pipeline under `ml/train_pipeline/` includes:
+
+- `lstm_train.py`
+- `gru_train.py`
+- `transformer_train.py`
+
+The backend training route maps directly to those entry points and accepts a company symbol from:
+
+- `CHCL`
+- `CZBIL`
+- `BPCL`
+- `AHPC`
+- `ADBL`
+- `ALICL`
+- `EBL`
+- `NTC`
+- `NABIL`
+- `PCBL`
 
 ## Notes
 
-- Keep `shuffle=False` in DataLoaders to preserve temporal order
-- Models expect 3D input: `[batch, seq_len, features]`
-- 2D inputs are automatically unsqueezed to `[batch, 1, features]`
+- The repo contains historical CSV data under `data/` for the listed companies.
+- Keep sequence-based ML inputs aligned across preprocessing, training, and evaluation.
+- The frontend currently references dashboard and prediction API calls that are not implemented in the checked-in backend routes yet.

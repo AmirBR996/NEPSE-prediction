@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException
-from ml.train_pipeline.user_train import main
+from ml.train_pipeline.train import main
+from ml.model_evaluation import evaluate
 
 router=APIRouter(
-    prefix="/train",
-    tags=["train"]
+    prefix="/admin",
+    tags=["admin"]
 )
 
 models=["lstm","gru","transformer"]
@@ -118,3 +119,36 @@ def train_all(data:str):
             status_code=500,
             detail=str(e)
         )
+
+@router.post("/evaluate/{data}")
+def evaluate_company(data:str):
+    if data not in companies:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported company: {data}"
+        )
+
+    results=[]
+
+    try:
+        for model_name in models:
+            result=evaluate(
+                data=data,
+                model_name=model_name
+            )
+            results.append(result)
+
+        return {
+            "company":data,
+            "results":results
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+
+
