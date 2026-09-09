@@ -6,3 +6,5 @@ data/
 **.joblib
 **.joblib
 trained_models
+.env
+**.db

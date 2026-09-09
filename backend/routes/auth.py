@@ -1,160 +1,103 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from backend.auth import create_token, hash_password, verify_password
+from backend.constants import ROLE_ADMIN, ROLE_USER
 from backend.database import get_db
+from backend.deps import get_current_user, require_user, user_to_dict
 from backend.model import User
-from backend.auth import (
-    ALGORITHM,
-    SECRET_KEY,
-    create_token,
-    hash_password,
-    verify_password
-)
+
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-router = APIRouter(
-    prefix="/auth",
-    tags=["Auth"]
-)
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    confirm_password: str | None = None
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/login"
-)
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 
 @router.post("/register")
-def register(
-    username: str,
-    email: str,
-    password: str,
-    db: Session = Depends(get_db)
-):
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    username = payload.username.strip()
+    email = payload.email.strip().lower()
 
-    user = (
-        db.query(User)
-        .filter(
-            User.username == username
-        )
-        .first()
-    )
+    if payload.confirm_password is not None and payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
 
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="Username already exists"
-        )
+    if len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(status_code=400, detail="Username already exists")
+
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already exists")
 
     user = User(
         username=username,
         email=email,
-        password=hash_password(password),
-        is_admin=False
+        password=hash_password(payload.password),
+        role=ROLE_USER,
+        is_admin=False,
+        is_authorized=False,
+        is_active=True,
     )
-
     db.add(user)
     db.commit()
     db.refresh(user)
 
     return {
-        "message": "User registered successfully"
+        "message": "User registered successfully",
+        **user_to_dict(user),
     }
 
 
 @router.post("/login")
-def login(
-    username: str,
-    password: str,
-    db: Session = Depends(get_db)
-):
-
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    identifier = payload.username.strip()
     user = (
         db.query(User)
-        .filter(
-            User.username == username
-        )
+        .filter((User.username == identifier) | (User.email == identifier.lower()))
         .first()
     )
 
-    if not user:
+    if not user or not verify_password(payload.password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid username or password"
-        )
+    if user.is_active is False:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
 
-    if not verify_password(
-        password,
-        user.password
-    ):
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid username or password"
-        )
-
-    token = create_token(
-        user.username,
-        user.is_admin
-    )
+    role = user.role or (ROLE_ADMIN if user.is_admin else ROLE_USER)
+    token = create_token(user.id, user.username, role)
 
     return {
         "access_token": token,
         "token_type": "bearer",
-        "is_admin": user.is_admin
+        **user_to_dict(user),
     }
-
-
-def get_current_user(
-    token: str = Depends(oauth2_scheme)
-):
-
-    try:
-
-        payload = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM]
-        )
-
-        username = payload.get("sub")
-
-        if username is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-
-        return payload
-
-    except JWTError:
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token"
-        )
 
 
 @router.get("/me")
-def me(
-    current_user=Depends(get_current_user)
-):
+def me(user: User = Depends(require_user)):
+    return user_to_dict(user)
 
-    return current_user
+
+@router.post("/logout")
+def logout(user: User = Depends(require_user)):
+    # JWT is stateless; client discards token. Endpoint exists for API completeness.
+    return {"message": "Logged out successfully", "username": user.username}
 
 
 @router.get("/admin")
-def admin(
-    current_user=Depends(get_current_user)
-):
-
-    if not current_user.get("is_admin"):
-        raise HTTPException(
-            status_code=403,
-            detail="Admin access required"
-        )
-
-    return {
-        "message": "Welcome Admin"
-    }
+def admin_check(user: User = Depends(get_current_user)):
+    role = user.role or (ROLE_ADMIN if user.is_admin else ROLE_USER)
+    if role != ROLE_ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return {"message": "Welcome Admin", **user_to_dict(user)}

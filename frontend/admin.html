@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — StockPulse.ai</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="admin">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <i data-lucide="trending-up" class="logo-icon"></i>
+      <h2>StockPulse<span>.ai</span></h2>
+    </div>
+
+    <nav class="nav-menu">
+      <div class="nav-section-label">Admin</div>
+      <button class="nav-btn active" data-admin-tab="dashboard"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+      <button class="nav-btn" data-admin-tab="models"><i data-lucide="boxes"></i> Models</button>
+      <button class="nav-btn" data-admin-tab="training"><i data-lucide="cpu"></i> Training</button>
+      <button class="nav-btn" data-admin-tab="evaluation"><i data-lucide="line-chart"></i> Evaluation</button>
+      <button class="nav-btn" data-admin-tab="companies"><i data-lucide="building-2"></i> Companies</button>
+      <button class="nav-btn" data-admin-tab="users"><i data-lucide="users"></i> Users</button>
+      <button class="nav-btn" data-admin-tab="system"><i data-lucide="activity"></i> System Status</button>
+      <div class="nav-section-label">App</div>
+      <a href="index.html" class="nav-btn"><i data-lucide="globe"></i> Public Dashboard</a>
+    </nav>
+
+    <div class="user-profile">
+      <div class="avatar" id="userAvatar">A</div>
+      <div class="user-info">
+        <span class="user-name" id="userName">Admin</span>
+        <span class="user-role" id="userRole">ADMIN</span>
+      </div>
+      <a href="auth.html" id="authPageLink" class="icon-btn" title="Logout">
+        <i data-lucide="log-out"></i>
+      </a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-title">
+        <h1 id="pageTitle">Dashboard</h1>
+        <p>Manage users, companies, training, evaluation, and production models</p>
+      </div>
+      <div class="api-config">
+        <span class="status-indicator online"></span>
+        <input type="text" id="baseUrlInput" value="http://localhost:8000">
+      </div>
+    </header>
+
+    <section id="admin-dashboard" class="admin-tab tab-content active">
+      <div id="adminStats" class="metrics-grid"></div>
+      <div class="alert-banner info">
+        <i data-lucide="info"></i>
+        <span>Evaluation models use a held-out test from <strong>2025-01-01</strong>. Setting production retrains that architecture on <strong>all data</strong> for live predictions.</span>
+      </div>
+    </section>
+
+    <section id="admin-users" class="admin-tab tab-content">
+      <div class="card">
+        <h3>User Management</h3>
+        <p class="section-desc">Authorize users for prediction access. Admins cannot be created via public registration.</p>
+        <div id="usersTable"></div>
+      </div>
+    </section>
+
+    <section id="admin-companies" class="admin-tab tab-content">
+      <div class="card">
+        <h3>Company Management</h3>
+        <div class="toolbar">
+          <input type="text" id="companySearch" placeholder="Search symbol or name">
+          <select id="companyFilter">
+            <option value="all">All</option>
+            <option value="trained">Trained</option>
+            <option value="untrained">Untrained</option>
+            <option value="training">Training</option>
+            <option value="failed">Failed</option>
+            <option value="evaluated">Evaluated</option>
+            <option value="not_evaluated">Not Evaluated</option>
+          </select>
+        </div>
+        <div id="companiesTable"></div>
+      </div>
+    </section>
+
+    <section id="admin-models" class="admin-tab tab-content">
+      <div id="modelsTable"></div>
+    </section>
+
+    <section id="admin-training" class="admin-tab tab-content">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Start Training</h3>
+          <p class="section-desc">Queues <strong>evaluation</strong> training (held-out test from 2025). Production deploy happens when you “Set Production”.</p>
+          <form id="adminTrainForm">
+            <div class="input-group">
+              <label>Company</label>
+              <select id="adminTrainCompany" data-company-select required></select>
+            </div>
+            <div class="input-group">
+              <label>Model</label>
+              <select id="adminTrainModel">
+                <option value="lstm">LSTM</option>
+                <option value="gru">GRU</option>
+                <option value="transformer">Transformer</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Epochs</label>
+              <input type="number" id="adminTrainEpochs" value="100" min="1" max="300">
+            </div>
+            <button type="submit" class="btn btn-danger btn-full"><i data-lucide="zap"></i> Start Training</button>
+          </form>
+          <div id="adminJobStatus" style="margin-top:1rem"></div>
+        </div>
+        <div class="card">
+          <h3>Training Jobs</h3>
+          <p class="section-desc">Live job status from the database (poll after starting a job).</p>
+          <div id="jobsTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="admin-evaluation" class="admin-tab tab-content">
+      <div class="card" style="margin-bottom:1.5rem">
+        <h3>Model Evaluation</h3>
+        <div class="toolbar">
+          <select id="evalCompany" data-company-select></select>
+          <button id="btnRunEvaluation" class="btn btn-primary"><i data-lucide="play"></i> Run Evaluation</button>
+        </div>
+        <div id="evalTable"></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Actual vs Predictions</h3>
+          <div id="adminComparisonEmpty" class="empty-state">Run evaluation to load comparison series.</div>
+          <div class="chart-wrap tall"><canvas id="adminComparisonChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Error Comparison</h3>
+          <div class="chart-wrap"><canvas id="metricsChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="admin-system" class="admin-tab tab-content">
+      <div class="card">
+        <h3>System Status</h3>
+        <div id="systemStatus"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -15,16 +15,25 @@ from ml.data_preprocessing.feature import build_pipeline
 from ml.model.lstm import StockLSTM 
 from ml.model.gru import StockGRU
 from ml.model.transformer import StockTransformer
+from ml.model_paths import PURPOSE_PRODUCTION, company_model_dir
 
 
-def main(data: str, model_name: str, epochs: int = 100, lr: float = 1e-4):
+def main(
+    data: str,
+    model_name: str,
+    epochs: int = 100,
+    lr: float = 1e-4,
+    progress_callback=None,
+):
+    """Train a production model on all available data (no held-out test split)."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+    print(f"Training purpose: {PURPOSE_PRODUCTION} (all data)")
 
     train_loader, test_loader, scaler_X, scaler_y = build_pipeline(
         csv_path=str(ROOT / "data" / f"{data}.csv"),
         batch_size=32,
-        include_test=False
+        include_test=False,
     )
 
     X_sample, _ = next(iter(train_loader))
@@ -61,7 +70,7 @@ def main(data: str, model_name: str, epochs: int = 100, lr: float = 1e-4):
     criterion = nn.MSELoss()
     optimizer = Adam(model.parameters(), lr=lr)
 
-    model_dir = ROOT / "trained_models" / data
+    model_dir = company_model_dir(data, PURPOSE_PRODUCTION)
     model_dir.mkdir(parents=True, exist_ok=True)
 
     model_path = model_dir / f"stock_{model_name}.pth"
@@ -91,27 +100,35 @@ def main(data: str, model_name: str, epochs: int = 100, lr: float = 1e-4):
 
         train_loss /= len(train_loader)
 
-        # Evaluation Phase
-        model.eval()
-        test_loss = 0.0
-        with torch.no_grad():
-            for X, y in test_loader:
-                X, y = X.to(device), y.to(device)
-                output = model(X)
+        # Without a held-out test split, report train loss as validation proxy
+        test_loss = train_loss
+        if test_loader is not None:
+            model.eval()
+            test_loss = 0.0
+            with torch.no_grad():
+                for X, y in test_loader:
+                    X, y = X.to(device), y.to(device)
+                    output = model(X)
 
-                if output.shape != y.shape:
-                    y = y.view_as(output)
+                    if output.shape != y.shape:
+                        y = y.view_as(output)
 
-                loss = criterion(output, y)
-                test_loss += loss.item()
+                    loss = criterion(output, y)
+                    test_loss += loss.item()
 
-        test_loss /= len(test_loader)
+            test_loss /= len(test_loader)
+
+        if test_loss < best_test_loss:
+            best_test_loss = test_loss
 
         print(
             f"Epoch [{epoch + 1:03d}/{epochs}] "
             f"Train Loss: {train_loss:.6f} | "
             f"Test Loss: {test_loss:.6f}"
         )
+
+        if progress_callback is not None:
+            progress_callback(epoch + 1, epochs, train_loss, test_loss)
 
     torch.save(model.state_dict(), model_path)
 

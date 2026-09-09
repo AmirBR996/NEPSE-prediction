@@ -1,120 +1,122 @@
-from fastapi import APIRouter, HTTPException
-from ml.train_pipeline.user_train import main
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-router=APIRouter(
-    prefix="/train",
-    tags=["train"]
+from backend.constants import MODEL_TYPES
+from backend.database import get_db
+from backend.deps import require_authorized_user
+from backend.model import User
+from backend.services.companies import get_company_by_symbol
+from backend.services.training import (
+    create_training_job,
+    job_to_dict,
+    start_training_job,
 )
 
-models=["lstm","gru","transformer"]
+router = APIRouter(prefix="/train", tags=["train"])
 
-companies=[
-    "CHCL",
-    "CZBIL",
-    "BPCL",
-    "AHPC",
-    "ADBL",
-    "ALICL",
-    "EBL",
-    "NTC",
-    "NABIL",
-    "PCBL"
-]
 
 @router.post("/trainall")
-def train_evaluation():
-    try:
-        results=[]
+def train_all(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_authorized_user),
+):
+    queued = []
+    errors = []
+    from backend.model import Company
 
-        for company in companies:
-            for model_name in models:
-                main(
-                    data=company,
-                    model_name=model_name,
-                    include_test=True
+    for company in db.query(Company).filter(Company.is_active.is_(True)).all():
+        for model_name in MODEL_TYPES:
+            try:
+                job = create_training_job(
+                    db=db,
+                    company=company,
+                    model_type=model_name,
+                    user_id=user.id,
+                    include_test=False,
+                    epochs=50,
                 )
+                start_training_job(job.id)
+                queued.append(job_to_dict(job))
+            except ValueError as exc:
+                errors.append(
+                    {
+                        "company": company.symbol,
+                        "model": model_name,
+                        "error": str(exc),
+                    }
+                )
+    return {
+        "message": "User training jobs queued",
+        "queued": queued,
+        "errors": errors,
+    }
 
-                results.append({
-                    "company":company,
-                    "model":model_name,
-                    "status":"trained"
-                })
-
-        return {
-            "message":"All evaluation models trained successfully",
-            "total_models":len(results),
-            "results":results
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
 
 @router.post("/{model}/{data}")
-def train(model:str,data:str):
-    if model not in models:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported model: {model}"
-        )
+def train_one(
+    model: str,
+    data: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_authorized_user),
+):
+    if model not in MODEL_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
 
-    if data not in companies:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported company: {data}"
-        )
+    company = get_company_by_symbol(db, data)
+    if not company:
+        raise HTTPException(status_code=400, detail=f"Unsupported company: {data}")
 
     try:
-        main(
-            data=data,
-            model_name=model,
-            include_test=True
+        job = create_training_job(
+            db=db,
+            company=company,
+            model_type=model,
+            user_id=user.id,
+            include_test=False,
+            epochs=50,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
-        return {
-            "response":f"{model} trained successfully for {data}"
-        }
+    start_training_job(job.id)
+    return {
+        "response": f"{model} training queued for {data}",
+        "job": job_to_dict(job),
+    }
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
 
 @router.post("/{data}")
-def train_all(data:str):
-    if data not in companies:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported company: {data}"
-        )
+def train_company_all(
+    data: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_authorized_user),
+):
+    if data == "trainall":
+        raise HTTPException(status_code=404, detail="Not found")
 
-    try:
-        results=[]
+    company = get_company_by_symbol(db, data)
+    if not company:
+        raise HTTPException(status_code=400, detail=f"Unsupported company: {data}")
 
-        for model_name in models:
-            main(
-                data=data,
-                model_name=model_name,
-                include_test=True
+    results = []
+    for model_name in MODEL_TYPES:
+        try:
+            job = create_training_job(
+                db=db,
+                company=company,
+                model_type=model_name,
+                user_id=user.id,
+                include_test=False,
+                epochs=50,
+            )
+            start_training_job(job.id)
+            results.append(job_to_dict(job))
+        except ValueError as exc:
+            results.append(
+                {"company": data, "model": model_name, "error": str(exc)}
             )
 
-            results.append({
-                "company":data,
-                "model":model_name,
-                "status":"trained"
-            })
-
-        return {
-            "response":f"All models trained successfully for {data}",
-            "total_models":len(results),
-            "results":results
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+    return {
+        "response": f"Training queued for all models on {data}",
+        "results": results,
+    }

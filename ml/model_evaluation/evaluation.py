@@ -19,6 +19,11 @@ from ml.data_preprocessing.feature import build_pipeline
 from ml.model.lstm import StockLSTM
 from ml.model.gru import StockGRU
 from ml.model.transformer import StockTransformer
+from ml.model_paths import (
+    PURPOSE_EVALUATION,
+    TEST_SPLIT_DATE,
+    resolve_model_path,
+)
 
 def evaluate_model(model,test_loader,scaler_y,device):
     model.eval()
@@ -60,6 +65,13 @@ def calculate_metrics(predicted_prices,actual_prices,pred_returns,actual_returns
         np.mean((predicted_prices-actual_prices)**2)
     )
 
+    mape_denom=np.where(np.abs(actual_prices)<1e-8,1e-8,np.abs(actual_prices))
+    mape_price=np.mean(np.abs((actual_prices-predicted_prices)/mape_denom))*100
+
+    ss_res=np.sum((actual_prices-predicted_prices)**2)
+    ss_tot=np.sum((actual_prices-np.mean(actual_prices))**2)
+    r2=float(1.0-(ss_res/ss_tot)) if ss_tot>0 else 0.0
+
     direction_acc=np.mean(
         np.sign(pred_returns)==np.sign(actual_returns)
     )*100
@@ -67,10 +79,12 @@ def calculate_metrics(predicted_prices,actual_prices,pred_returns,actual_returns
     return {
         "mae":float(mae_price),
         "rmse":float(rmse_price),
+        "mape":float(mape_price),
+        "r2":r2,
         "directional_accuracy":float(direction_acc)
     }
 
-def load_model(data,model_name,input_dim,device):
+def load_model(data,model_name,input_dim,device,purpose=PURPOSE_EVALUATION):
     if model_name=="lstm":
         model=StockLSTM(
             input_size=input_dim,
@@ -97,12 +111,7 @@ def load_model(data,model_name,input_dim,device):
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
-    model_path=PROJECT_ROOT/"trained_models"/data/f"stock_{model_name}.pth"
-
-    if not model_path.exists():
-        raise FileNotFoundError(
-            f"Model not found: {model_path}"
-        )
+    model_path=resolve_model_path(data, model_name, purpose)
 
     model.load_state_dict(
         torch.load(
@@ -116,7 +125,7 @@ def load_model(data,model_name,input_dim,device):
 
     return model
 
-def evaluate(data,model_name):
+def evaluate(data,model_name,include_series=False):
     device=torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
@@ -144,7 +153,8 @@ def evaluate(data,model_name):
         data,
         model_name,
         input_dim,
-        device
+        device,
+        purpose=PURPOSE_EVALUATION,
     )
 
     pred_returns,actual_returns=evaluate_model(
@@ -161,7 +171,7 @@ def evaluate(data,model_name):
     df=df.sort_values("published_date").reset_index(drop=True)
 
     test_df=df[
-        df["published_date"]>="2026-01-01"
+        df["published_date"]>=TEST_SPLIT_DATE
     ].copy()
 
     predicted_prices,actual_prices,plot_dates=reconstruct_prices(
@@ -177,8 +187,26 @@ def evaluate(data,model_name):
         actual_returns
     )
 
-    return {
+    result={
         "company":data,
         "model":model_name,
-        "metrics":metrics
+        "metrics":metrics,
+        "purpose":PURPOSE_EVALUATION,
+        "test_split_date":TEST_SPLIT_DATE,
     }
+
+    if include_series:
+        dates=[]
+        for d in plot_dates:
+            if hasattr(d,"strftime"):
+                dates.append(d.strftime("%Y-%m-%d"))
+            else:
+                dates.append(str(pd.Timestamp(d).date()))
+
+        result["series"]={
+            "dates":dates,
+            "actual":[float(x) for x in actual_prices],
+            "predicted":[float(x) for x in predicted_prices],
+        }
+
+    return result

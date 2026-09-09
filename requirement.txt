@@ -6,12 +6,12 @@ black
 scikit-learn
 torch
 matplotlib
+joblib
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 pydantic>=2.0
 python-multipart>=0.0.6
-fastapi 
-uvicorn 
-sqlalchemy 
-python-jose 
-passlib[bcrypt]
+sqlalchemy
+python-jose[cryptography]
+pwdlib[argon2]
+httpx

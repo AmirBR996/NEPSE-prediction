@@ -1,263 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEPSE Neural Analytics Platform</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            200: '#bbf7d0',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            800: '#166534',
-                            900: '#14532d',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — StockPulse.ai</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row">
+<body data-page="dashboard">
 
-    <aside id="appSidebar" class="w-full md:w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800 hidden">
+  <aside class="sidebar">
+    <div class="logo">
+      <i data-lucide="trending-up" class="logo-icon"></i>
+      <h2>Mero Stock<span></span></h2>
+    </div>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-btn active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+      <a href="predict.html" class="nav-btn" id="navPredict" data-auth="user"><i data-lucide="sparkles"></i> Predict</a>
+      <a href="admin.html" class="nav-btn" data-auth="admin"><i data-lucide="shield"></i> Admin</a>
+      <a href="auth.html" class="nav-btn" data-auth="guest"><i data-lucide="log-in"></i> Login</a>
+    </nav>
+
+    <div class="user-profile">
+      <div class="avatar" id="userAvatar">G</div>
+      <div class="user-info">
+        <span class="user-name" id="userName">Guest</span>
+        <span class="user-role" id="userRole">Public</span>
+      </div>
+      <a href="auth.html" id="authPageLink" class="icon-btn" title="Login / Register">
+        <i data-lucide="log-in"></i>
+      </a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-title">
+        <h1 id="pageTitle">Market Dashboard</h1>
+        <p>Public company data, charts, and model forecast overview</p>
+      </div>
+      
+    </header>
+
+    <div id="authPendingBanner" class="alert-banner warning hidden">
+      <i data-lucide="clock"></i>
+      <div>
+        <strong>Your account is waiting for admin authorization.</strong><br>
+        You can view the dashboard, but prediction and model training are currently unavailable.
+      </div>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="card metric">
+        <i data-lucide="key" class="card-icon"></i>
         <div>
-            <div class="h-16 flex items-center px-6 border-b border-slate-800 space-x-3">
-                <div class="p-2 bg-brand-500/20 text-brand-500 rounded-lg">
-                    <i data-lucide="line-chart" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-white text-base leading-tight">NEPSE Studio</h1>
-                    <span id="roleBadge" class="text-xs text-brand-500 font-semibold uppercase">User Access</span>
-                </div>
-            </div>
-            <nav class="p-4 space-y-1">
-                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-brand-600 text-white">
-                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                    <span>Market Dashboard</span>
-                </button>
-                <button onclick="switchTab('prediction')" id="nav-prediction" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i data-lucide="cpu" class="w-4 h-4"></i>
-                    <span>AI Prediction</span>
-                </button>
-                <button onclick="switchTab('admin')" id="nav-admin" class="nav-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-slate-800 hidden">
-                    <i data-lucide="database" class="w-4 h-4"></i>
-                    <span>Data & Model Admin</span>
-                </button>
-            </nav>
+          <h3>Auth Status</h3>
+          <p id="authStatusText">Checking…</p>
         </div>
-        <div class="p-4 border-t border-slate-800 space-y-3">
-            <div class="text-xs text-slate-400 flex items-center space-x-2">
-                <i data-lucide="user" class="w-4 h-4 text-brand-500"></i>
-                <span id="currentUserLabel">Active: User Mode</span>
-            </div>
-            <button onclick="logout()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-xs font-medium flex items-center justify-center space-x-2 transition-colors">
-                <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
-                <span>Sign Out</span>
-            </button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem">
+      <div class="toolbar">
+        <div class="input-group" style="margin:0;min-width:260px">
+          <label for="companySelect">Select Company</label>
+          <select id="companySelect"></select>
         </div>
-    </aside>
+      </div>
+      <div id="companyOverview"></div>
+    </div>
 
-    <main class="flex-1 overflow-y-auto p-6 md:p-8">
+    <div class="grid-2" style="margin-bottom:1.5rem">
+      <div class="card">
+        <h3>Historical Prices</h3>
+        <p class="section-desc">Open / High / Low / Close (toggle series in legend)</p>
+        <div class="range-pills">
+          <button class="range-pill" data-range="1M">1M</button>
+          <button class="range-pill" data-range="3M">3M</button>
+          <button class="range-pill" data-range="6M">6M</button>
+          <button class="range-pill active" data-range="1Y">1Y</button>
+          <button class="range-pill" data-range="5Y">5Y</button>
+          <button class="range-pill" data-range="ALL">ALL</button>
+        </div>
+        <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Trading Volume</h3>
+        <p class="section-desc">Daily traded quantity</p>
+        <div class="chart-wrap"><canvas id="volumeChart"></canvas></div>
+      </div>
+    </div>
 
-        <section id="page-auth" class="max-w-md mx-auto my-8 bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-            <div class="text-center mb-6">
-                <div class="inline-flex p-3 bg-brand-50 text-brand-600 rounded-full mb-3">
-                    <i data-lucide="shield-check" class="w-8 h-8"></i>
-                </div>
-                <h2 class="text-xl font-bold text-slate-900" id="authTitle">Welcome Back</h2>
-                <p class="text-xs text-slate-500 mt-1">Access NEPSE Deep Learning Models & Data</p>
-            </div>
-            <div class="grid grid-cols-2 bg-slate-100 p-1 rounded-lg text-xs font-medium mb-6">
-                <button id="btnTabLogin" onclick="toggleAuthMode('login')" class="py-2 rounded-md bg-white text-slate-800 shadow-sm transition-colors">Sign In</button>
-                <button id="btnTabRegister" onclick="toggleAuthMode('register')" class="py-2 rounded-md text-slate-500 hover:text-slate-700 transition-colors">Register</button>
-            </div>
-            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
-                <div id="fieldName" class="hidden">
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Full Name</label>
-                    <input type="text" id="regName" placeholder="John Doe" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition-all">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email Address</label>
-                    <input type="email" id="authEmail" required placeholder="name@nepse.com" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition-all">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>
-                    <input type="password" id="authPassword" required placeholder="••••••••" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition-all">
-                </div>
-                <div id="authRoleField" class="hidden">
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Account Role</label>
-                    <select id="authRole" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
-                        <option value="user">Standard User (View & Forecast)</option>
-                        <option value="admin">Administrator (Manage Data & Retrain)</option>
-                    </select>
-                </div>
-                <button type="submit" id="authSubmitBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors">Sign In</button>
-            </form>
-            <div id="authError" class="mt-4 text-red-600 text-xs text-center hidden"></div>
-        </section>
+    <div class="card" style="margin-bottom:1.5rem">
+      <h3>Model Forecast Overview</h3>
+      <p class="section-desc">Evaluation metrics for LSTM, GRU, and Transformer when available</p>
+      <div id="forecastCards" class="model-cards"></div>
+    </div>
 
-        <section id="page-dashboard" class="space-y-6 hidden">
-            <header class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-900">Market Dashboard</h2>
-                    <p class="text-sm text-slate-500">Historical OHLCV data and key metrics</p>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <select id="dashSymbol" onchange="loadDashboardData()" class="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                        <option value="ADBL">ADBL</option>
-                    </select>
-                </div>
-            </header>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 uppercase font-semibold">Latest Close</p>
-                    <p class="text-2xl font-bold text-slate-900 mt-1" id="dashClose">--</p>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 uppercase font-semibold">Change</p>
-                    <p class="text-2xl font-bold mt-1" id="dashChange">--</p>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 uppercase font-semibold">Change %</p>
-                    <p class="text-2xl font-bold mt-1" id="dashChangePct">--</p>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <p class="text-xs text-slate-500 uppercase font-semibold">Volume</p>
-                    <p class="text-2xl font-bold text-slate-900 mt-1" id="dashVolume">--</p>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div class="h-80 md:h-96">
-                    <canvas id="historicalChart"></canvas>
-                </div>
-            </div>
-        </section>
+    <div class="card">
+      <h3>Model Comparison</h3>
+      <p class="section-desc">Actual vs LSTM vs GRU vs Transformer</p>
+      <div id="comparisonEmpty" class="empty-state">No evaluation series available yet. Train and evaluate models from the admin panel.</div>
+      <div class="chart-wrap tall"><canvas id="comparisonChart"></canvas></div>
+    </div>
+  </main>
 
-        <section id="page-prediction" class="space-y-6 hidden">
-            <header>
-                <h2 class="text-2xl font-bold text-slate-900">AI Prediction Studio</h2>
-                <p class="text-sm text-slate-500">Forecast next-day prices using LSTM, GRU, or Transformer</p>
-            </header>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Company</label>
-                        <select id="predSymbol" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                            <option value="ADBL">ADBL</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Model</label>
-                        <select id="predModel" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                            <option value="lstm">LSTM</option>
-                            <option value="gru">GRU</option>
-                            <option value="transformer">Transformer</option>
-                        </select>
-                    </div>
-                    <div class="flex items-end">
-                        <button onclick="runPrediction()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 rounded-lg text-sm transition-colors flex items-center justify-center space-x-2">
-                            <i data-lucide="play" class="w-4 h-4"></i>
-                            <span>Run Prediction</span>
-                        </button>
-                    </div>
-                </div>
-                <div id="predictionResult" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-                    <div class="bg-slate-50 p-4 rounded-lg">
-                        <p class="text-xs text-slate-500 uppercase font-semibold">Last Close</p>
-                        <p class="text-xl font-bold text-slate-900 mt-1" id="predLastClose">--</p>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-lg">
-                        <p class="text-xs text-slate-500 uppercase font-semibold">Predicted Return</p>
-                        <p class="text-xl font-bold mt-1" id="predReturn">--</p>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-lg">
-                        <p class="text-xs text-slate-500 uppercase font-semibold">Predicted Price</p>
-                        <p class="text-xl font-bold text-brand-700 mt-1" id="predPrice">--</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="font-semibold text-slate-800">Actual vs Predicted</h3>
-                    <button onclick="loadChartData()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition-colors">Refresh Chart</button>
-                </div>
-                <div class="h-80 md:h-96">
-                    <canvas id="predictionChart"></canvas>
-                </div>
-                <div class="flex space-x-3">
-                    <button onclick="downloadPlot()" class="text-xs bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                        <span>Download Plot</span>
-                    </button>
-                    <button onclick="sharePlot()" class="text-xs bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
-                        <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
-                        <span>Share Plot</span>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <section id="page-admin" class="space-y-6 hidden">
-            <header>
-                <h2 class="text-2xl font-bold text-slate-900">Data & Model Admin</h2>
-                <p class="text-sm text-slate-500">Scrape market data and retrain deep learning models</p>
-            </header>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                    <h3 class="font-semibold text-slate-800 border-b pb-2 flex items-center space-x-2">
-                        <i data-lucide="globe" class="w-4 h-4"></i>
-                        <span>Web Scraper Control</span>
-                    </h3>
-                    <p class="text-xs text-slate-500">Sync latest historical data from sharesansar.com for all NEPSE companies.</p>
-                    <button onclick="runScrape()" id="btnScrape" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                        <span>Sync Sharesansar Data</span>
-                    </button>
-                    <div id="scrapeStatus" class="text-xs text-slate-500 hidden"></div>
-                </div>
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                    <h3 class="font-semibold text-slate-800 border-b pb-2 flex items-center space-x-2">
-                        <i data-lucide="brain" class="w-4 h-4"></i>
-                        <span>Retrain Models</span>
-                    </h3>
-                    <p class="text-xs text-slate-500">Retrain LSTM, GRU, or Transformer on the latest dataset.</p>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button onclick="runTrain('lstm')" class="train-btn bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg text-xs font-medium transition-colors">Train LSTM</button>
-                        <button onclick="runTrain('gru')" class="train-btn bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg text-xs font-medium transition-colors">Train GRU</button>
-                        <button onclick="runTrain('transformer')" class="train-btn bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg text-xs font-medium transition-colors">Train Transformer</button>
-                    </div>
-                    <div id="trainStatus" class="text-xs text-slate-500 hidden"></div>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <h3 class="font-semibold text-slate-800 border-b pb-2">Trained Models</h3>
-                <div id="modelsList" class="grid grid-cols-1 md:grid-cols-3 gap-4">Loading...</div>
-            </div>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="font-semibold text-slate-800">Model Comparison Plot</h3>
-                    <button onclick="loadComparisonPlot()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition-colors">Refresh</button>
-                </div>
-                <div class="flex items-center justify-center bg-slate-50 rounded-lg p-4 min-h-64">
-                    <img id="comparisonPlot" src="" alt="Comparison Plot" class="max-w-full max-h-96 rounded-lg shadow-sm hidden">
-                    <p id="plotPlaceholder" class="text-sm text-slate-400">Run evaluation to generate comparison plot</p>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

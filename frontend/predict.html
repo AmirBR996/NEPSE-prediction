@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predict — StockPulse.ai</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="predict">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <i data-lucide="trending-up" class="logo-icon"></i>
+      <h2>StockPulse<span>.ai</span></h2>
+    </div>
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-btn"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+      <a href="predict.html" class="nav-btn active" id="navPredict"><i data-lucide="sparkles"></i> Predict</a>
+    </nav>
+    <div class="user-profile">
+      <div class="avatar" id="userAvatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="userName">User</span>
+        <span class="user-role" id="userRole">USER</span>
+      </div>
+      <a href="auth.html" id="authPageLink" class="icon-btn" title="Logout">
+        <i data-lucide="log-out"></i>
+      </a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-title">
+        <h1>Prediction</h1>
+        <p>Run forecasts with the company production model</p>
+      </div>
+      <div class="api-config">
+        <span class="status-indicator online"></span>
+        <input type="text" id="baseUrlInput" value="http://localhost:8000">
+      </div>
+    </header>
+
+    <div id="predictLocked" class="locked-panel hidden">
+      <i data-lucide="lock" style="width:48px;height:48px;color:#94a3b8"></i>
+      <h2>Prediction Access Restricted</h2>
+      <p>Your account has not yet been authorized by an administrator. Please contact the administrator to enable prediction access.</p>
+      <a href="index.html" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+
+    <div id="predictPanel" class="hidden">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Start Prediction</h3>
+          <p class="section-desc">Uses the admin-selected <strong>production</strong> model (trained on all data). Evaluation models are for comparison only.</p>
+          <form id="predictForm">
+            <div class="input-group">
+              <label>Company</label>
+              <select id="predictCompany" required></select>
+            </div>
+            <div class="input-group">
+              <label>Model</label>
+              <div class="radio-group">
+                <label><input type="radio" name="predictModel" value="production" checked> Production model</label>
+                <label><input type="radio" name="predictModel" value="lstm"> LSTM</label>
+                <label><input type="radio" name="predictModel" value="gru"> GRU</label>
+                <label><input type="radio" name="predictModel" value="transformer"> Transformer</label>
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Prediction Horizon</label>
+              <select id="predictHorizon">
+                <option value="1">Next 1 day</option>
+                <option value="3">Next 3 days</option>
+                <option value="5">Next 5 days</option>
+                <option value="7">Next 7 days</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full"><i data-lucide="play"></i> Start Prediction</button>
+          </form>
+          <div id="predictResult" style="margin-top:1.25rem"></div>
+        </div>
+
+        <div class="card">
+          <h3>Train Your Model</h3>
+          <p class="section-desc">Queues a production job (all-data train). Prefer admin “Set Production” after evaluation when possible.</p>
+          <form id="userTrainForm">
+            <div class="input-group">
+              <label>Company</label>
+              <select id="trainCompany" data-company-select required></select>
+            </div>
+            <div class="input-group">
+              <label>Model</label>
+              <div class="radio-group">
+                <label><input type="radio" name="trainModel" value="lstm" checked> LSTM</label>
+                <label><input type="radio" name="trainModel" value="gru"> GRU</label>
+                <label><input type="radio" name="trainModel" value="transformer"> Transformer</label>
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Epochs</label>
+              <input type="number" id="trainEpochs" value="50" min="1" max="200">
+            </div>
+            <button type="submit" class="btn btn-accent btn-full"><i data-lucide="cpu"></i> Start Training</button>
+          </form>
+          <div id="userTrainStatus" style="margin-top:1rem"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1.5rem">
+        <h3>Your Prediction History</h3>
+        <div id="predictionHistory" class="empty-state">Loading…</div>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -21,7 +21,11 @@ def create_sequences(X_data,y_data,seq_length=30):
         y_seq.append(y_data[i+seq_length])
     return np.array(X_seq),np.array(y_seq)
 
-def splitting_and_processing(df,seq_length=30,include_test=True):
+def splitting_and_processing(df,seq_length=30,include_test=True,test_split_date=None):
+    from ml.model_paths import TEST_SPLIT_DATE
+
+    split_date = test_split_date or TEST_SPLIT_DATE
+
     feature_cols=[
         "open",
         "high",
@@ -37,8 +41,9 @@ def splitting_and_processing(df,seq_length=30,include_test=True):
     y_scaler=StandardScaler()
 
     if include_test:
-        train=df[df["published_date"]<"2026-01-01"].copy()
-        test=df[df["published_date"]>="2026-01-01"].copy()
+        # Evaluation split: train before split_date, test from split_date onward
+        train=df[df["published_date"]<split_date].copy()
+        test=df[df["published_date"]>=split_date].copy()
 
         X_train_raw=train[feature_cols].values
         y_train_raw=train["target"].values.reshape(-1,1)
