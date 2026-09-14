@@ -640,7 +640,6 @@
         if (tab === 'dashboard') loadAdminStats();
         if (tab === 'users') loadAdminUsers();
         if (tab === 'companies') loadAdminCompanies();
-        if (tab === 'models') loadAdminModels();
         if (tab === 'training') loadAdminTraining();
         if (tab === 'evaluation') initAdminEvaluation();
         if (tab === 'system') loadSystemStatus();
@@ -742,13 +741,14 @@
 
   async function loadAdminCompanies() {
     const el = document.getElementById('companiesTable');
+    const modelsEl = document.getElementById('companyModelsPanel');
     const filter = document.getElementById('companyFilter')?.value || 'all';
     const q = document.getElementById('companySearch')?.value || '';
     try {
       const res = await apiFetch(`/admin/companies?status=${encodeURIComponent(filter)}&q=${encodeURIComponent(q)}`);
       const rows = res.companies || [];
       el.innerHTML = `<div class="table-wrap"><table class="data-table">
-        <thead><tr><th>Company</th><th>LSTM</th><th>GRU</th><th>Transformer</th><th>Production</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Company</th><th>LSTM</th><th>GRU</th><th>Transformer</th><th>Production</th><th>Status</th></tr></thead>
         <tbody>${rows.map((c) => {
           const mark = (m) => {
             const ev = c.models?.[m]?.has_evaluation_weights ? 'E' : '·';
@@ -760,41 +760,50 @@
             <td>${mark('lstm')}</td><td>${mark('gru')}</td><td>${mark('transformer')}</td>
             <td>${c.production_model || 'None'}</td>
             <td>${statusBadge(c.training_status)}</td>
-            <td class="action-row">
-              <button class="btn btn-sm btn-primary" data-train-co="${c.symbol}">Train Eval LSTM</button>
-              <button class="btn btn-sm btn-secondary" data-eval-co="${c.symbol}">Evaluate</button>
-            </td>
           </tr>`;
         }).join('')}</tbody></table></div>
         <p class="section-desc" style="margin-top:0.75rem">E = evaluation weights (2025 hold-out) · P = production weights (all data)</p>`;
 
-      el.querySelectorAll('[data-train-co]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          btn.disabled = true;
-          try {
-            const res = await apiFetch('/admin/training', {
-              method: 'POST',
-              body: JSON.stringify({ company: btn.dataset.trainCo, model: 'lstm', epochs: 100 }),
-            });
-            toast('Training queued', 'success');
-            pollJob(res.job.id, 'adminJobStatus');
-          } catch (err) { toast(err.message, 'error'); }
-          finally { btn.disabled = false; }
+      if (modelsEl) {
+        modelsEl.innerHTML = rows.map((c) => `
+          <div class="card" style="margin-bottom:1rem">
+            <h3>${c.symbol} <small style="color:var(--text-muted)">${c.name || ''}</small>
+              ${statusBadge(c.training_status)} Production: <strong>${c.production_model || 'None'}</strong></h3>
+            <div class="model-cards" style="margin-top:1rem">
+              ${['lstm','gru','transformer'].map((m) => {
+                const info = c.models?.[m] || {};
+                return `<div class="model-card ${info.is_production ? 'production' : ''}">
+                  <h4>${m.toUpperCase()} ${info.is_production ? '<span class="badge badge-green">Selected</span>' : ''}</h4>
+                  <p>Evaluation: ${info.has_evaluation_weights ? 'Yes' : 'No'}</p>
+                  <p>Production (all data): ${info.has_production_weights ? 'Yes' : 'No'}</p>
+                  <p>Status: ${info.status || 'not_trained'}</p>
+                  ${info.has_evaluation_weights && !info.is_production
+                    ? `<button class="btn btn-sm btn-accent" data-set-prod="${c.symbol}" data-model="${m}">Set Production & Deploy</button>`
+                    : ''}
+                  ${info.is_production && !info.has_production_weights
+                    ? `<button class="btn btn-sm btn-primary" data-set-prod="${c.symbol}" data-model="${m}">Deploy Production Train</button>`
+                    : ''}
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`).join('') || '<div class="empty-state">No companies</div>';
+
+        modelsEl.querySelectorAll('[data-set-prod]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            try {
+              await apiFetch(`/admin/companies/${btn.dataset.setProd}/production`, {
+                method: 'POST',
+                body: JSON.stringify({ model_type: btn.dataset.model }),
+              });
+              toast('Production selected; all-data deploy queued', 'success');
+              loadAdminCompanies();
+            } catch (err) { toast(err.message, 'error'); }
+          });
         });
-      });
-      el.querySelectorAll('[data-eval-co]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          btn.disabled = true;
-          try {
-            await apiFetch(`/admin/companies/${btn.dataset.evalCo}/evaluate`, { method: 'POST' });
-            toast('Evaluation completed', 'success');
-            loadAdminCompanies();
-          } catch (err) { toast(err.message, 'error'); }
-          finally { btn.disabled = false; }
-        });
-      });
+      }
     } catch (err) {
       el.innerHTML = `<div class="empty-state">${err.message}</div>`;
+      if (modelsEl) modelsEl.innerHTML = '';
     }
   }
 
@@ -804,65 +813,81 @@
     state._searchTimer = setTimeout(loadAdminCompanies, 300);
   });
 
-  async function loadAdminModels() {
-    const el = document.getElementById('modelsTable');
-    try {
-      const res = await apiFetch('/admin/models');
-      el.innerHTML = (res.models || []).map((row) => `
-        <div class="card" style="margin-bottom:1rem">
-          <h3>${row.company} <small style="color:var(--text-muted)">${row.name || ''}</small>
-            ${statusBadge(row.status)} Production: <strong>${row.production_model || 'None'}</strong></h3>
-          <div class="model-cards" style="margin-top:1rem">
-            ${['lstm','gru','transformer'].map((m) => {
-              const info = row.models?.[m] || {};
-              return `<div class="model-card ${info.is_production ? 'production' : ''}">
-                <h4>${m.toUpperCase()} ${info.is_production ? '<span class="badge badge-green">Selected</span>' : ''}</h4>
-                <p>Evaluation weights: ${info.has_evaluation_weights ? 'Yes' : 'No'}</p>
-                <p>Production weights (all data): ${info.has_production_weights ? 'Yes' : 'No'}</p>
-                <p>Status: ${info.status || 'not_trained'}</p>
-                ${info.has_evaluation_weights && !info.is_production ? `<button class="btn btn-sm btn-accent" data-set-prod="${row.company}" data-model="${m}">Set Production & Deploy</button>` : ''}
-                ${info.is_production && !info.has_production_weights ? `<button class="btn btn-sm btn-primary" data-set-prod="${row.company}" data-model="${m}">Deploy Production Train</button>` : ''}
-              </div>`;
-            }).join('')}
-          </div>
-        </div>`).join('') || '<div class="empty-state">No models</div>';
-
-      el.querySelectorAll('[data-set-prod]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          try {
-            await apiFetch(`/admin/companies/${btn.dataset.setProd}/production`, {
-              method: 'POST',
-              body: JSON.stringify({ model_type: btn.dataset.model }),
-            });
-            toast('Production selected; all-data deploy queued', 'success');
-            loadAdminModels();
-          } catch (err) { toast(err.message, 'error'); }
-        });
-      });
-    } catch (err) {
-      el.innerHTML = `<div class="empty-state">${err.message}</div>`;
+  function syncTrainModeUI() {
+    const mode = document.querySelector('input[name="trainMode"]:checked')?.value || 'one';
+    const companyGroup = document.getElementById('trainCompanyGroup');
+    const modelGroup = document.getElementById('trainModelGroup');
+    const submit = document.getElementById('adminTrainSubmit');
+    if (companyGroup) companyGroup.classList.toggle('hidden', mode === 'all');
+    if (modelGroup) modelGroup.classList.toggle('hidden', mode !== 'one');
+    if (submit) {
+      const labels = {
+        one: 'Train 1 Model',
+        company_all: 'Train All 3 Models',
+        all: 'Train All Companies × All Models',
+      };
+      submit.innerHTML = `<i data-lucide="zap"></i> ${labels[mode] || 'Start Training'}`;
+      if (window.lucide) lucide.createIcons();
     }
   }
 
   async function loadAdminTraining() {
     const form = document.getElementById('adminTrainForm');
+    const modeGroup = document.getElementById('trainModeGroup');
+
+    if (modeGroup && !modeGroup.dataset.bound) {
+      modeGroup.dataset.bound = '1';
+      modeGroup.querySelectorAll('input[name="trainMode"]').forEach((input) => {
+        input.addEventListener('change', syncTrainModeUI);
+      });
+    }
+    syncTrainModeUI();
+
     if (form && !form.dataset.bound) {
       form.dataset.bound = '1';
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = form.querySelector('button[type="submit"]');
+        const mode = document.querySelector('input[name="trainMode"]:checked')?.value || 'one';
+        const company = document.getElementById('adminTrainCompany')?.value;
+        const model = document.getElementById('adminTrainModel')?.value;
+        const epochs = Number(document.getElementById('adminTrainEpochs').value || 100);
         btn.disabled = true;
         try {
-          const res = await apiFetch('/admin/training', {
-            method: 'POST',
-            body: JSON.stringify({
-              company: document.getElementById('adminTrainCompany').value,
-              model: document.getElementById('adminTrainModel').value,
-              epochs: Number(document.getElementById('adminTrainEpochs').value || 100),
-            }),
-          });
-          toast('Training queued', 'success');
-          pollJob(res.job.id, 'adminJobStatus');
+          if (mode === 'one') {
+            const res = await apiFetch('/admin/training', {
+              method: 'POST',
+              body: JSON.stringify({ company, model, epochs }),
+            });
+            toast(`Queued ${model} evaluation training for ${company}`, 'success');
+            if (res.job?.id) pollJob(res.job.id, 'adminJobStatus');
+          } else if (mode === 'company_all') {
+            const res = await apiFetch(
+              `/admin/${encodeURIComponent(company)}?epochs=${epochs}`,
+              { method: 'POST' }
+            );
+            toast(`Queued all 3 models for ${company}`, 'success');
+            const firstJob = (res.results || []).find((r) => r.id);
+            if (firstJob?.id) pollJob(firstJob.id, 'adminJobStatus');
+            else {
+              const status = document.getElementById('adminJobStatus');
+              if (status) status.textContent = JSON.stringify(res.results || res, null, 2);
+            }
+          } else {
+            if (!confirm('Queue evaluation training for ALL companies × ALL models? This can take a long time.')) {
+              btn.disabled = false;
+              return;
+            }
+            const res = await apiFetch(`/admin/trainall?epochs=${epochs}`, { method: 'POST' });
+            toast(`Queued ${res.queued?.length || 0} training jobs`, 'success');
+            const firstJob = (res.queued || [])[0];
+            if (firstJob?.id) pollJob(firstJob.id, 'adminJobStatus');
+            else {
+              const status = document.getElementById('adminJobStatus');
+              if (status) status.textContent = `Queued ${res.queued?.length || 0} jobs` +
+                (res.errors?.length ? `; ${res.errors.length} skipped` : '');
+            }
+          }
           loadAdminJobs();
         } catch (err) { toast(err.message, 'error'); }
         finally { btn.disabled = false; }

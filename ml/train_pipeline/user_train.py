@@ -132,9 +132,6 @@ def main(
 
     torch.save(model.state_dict(), model_path)
 
-    joblib.dump(scaler_X, scaler_X_path)
-    joblib.dump(scaler_y, scaler_y_path)
-
     print("\nTraining Complete.")
     print(f"Best Model saved to: {model_path} (Test Loss: {best_test_loss:.6f})")
     print(f"Scalers saved to: {model_dir}")

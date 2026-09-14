@@ -41,14 +41,18 @@ class AuthorizeUpdate(BaseModel):
 
 
 class TrainRequest(BaseModel):
-    company: str
-    model: str
+    company: str | list[str]
+    model: str | list[str]
     epochs: int = Field(default=100, ge=1, le=300)
 
 
 class ProductionRequest(BaseModel):
     model_type: str
     epochs: int = Field(default=100, ge=1, le=300)
+
+
+def _as_list(value: str | list[str]) -> list[str]:
+    return value if isinstance(value, list) else [value]
 
 
 # ---------- Overview ----------
@@ -285,9 +289,9 @@ def admin_train_company(
     admin: User = Depends(require_admin),
 ):
     company = _resolve(db, company_id)
-    model = (payload.model if payload else None) or "lstm"
+    model_value = (payload.model if payload else None) or "lstm"
     epochs = payload.epochs if payload else 100
-    model = model.lower()
+    model = _as_list(model_value)[0].lower()
     if model not in MODEL_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
 
@@ -507,33 +511,67 @@ def admin_start_training(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    company = get_company_by_symbol(db, payload.company)
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
-    model = payload.model.lower()
-    if model not in MODEL_TYPES:
-        raise HTTPException(status_code=400, detail=f"Unsupported model: {model}")
+    companies = _as_list(payload.company)
+    models = _as_list(payload.model)
 
-    try:
-        job = create_training_job(
-            db=db,
-            company=company,
-            model_type=model,
-            user_id=admin.id,
-            include_test=True,
-            epochs=payload.epochs,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+    queued = []
+    errors = []
+    for company_symbol in dict.fromkeys(companies):
+        company = get_company_by_symbol(db, company_symbol)
+        if not company:
+            errors.append({"company": company_symbol, "error": "Company not found"})
+            continue
 
-    start_training_job(job.id)
-    return {"message": "Training queued", "job": job_to_dict(job)}
+        for model_name in dict.fromkeys(models):
+            model = model_name.lower()
+            if model not in MODEL_TYPES:
+                errors.append(
+                    {
+                        "company": company_symbol,
+                        "model": model_name,
+                        "error": f"Unsupported model: {model}",
+                    }
+                )
+                continue
+
+            try:
+                job = create_training_job(
+                    db=db,
+                    company=company,
+                    model_type=model,
+                    user_id=admin.id,
+                    include_test=True,
+                    epochs=payload.epochs,
+                )
+            except ValueError as exc:
+                errors.append(
+                    {
+                        "company": company_symbol,
+                        "model": model,
+                        "error": str(exc),
+                    }
+                )
+                continue
+
+            start_training_job(job.id)
+            queued.append(job_to_dict(job))
+
+    if not queued and errors:
+        raise HTTPException(status_code=409, detail=errors[0]["error"])
+
+    return {
+        "message": "Training queued",
+        "queued": queued,
+        "errors": errors,
+        "job": queued[0] if len(queued) == 1 else None,
+    }
 
 
 @router.post("/trainall")
 def train_all_admin(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
+    epochs: int = Query(100, ge=1, le=300),
 ):
     queued = []
     errors = []
@@ -546,7 +584,7 @@ def train_all_admin(
                     model_type=model_name,
                     user_id=admin.id,
                     include_test=True,
-                    epochs=100,
+                    epochs=epochs,
                 )
                 start_training_job(job.id)
                 queued.append(job_to_dict(job))
@@ -604,6 +642,7 @@ def train_all_for_company_legacy(
     data: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
+    epochs: int = Query(100, ge=1, le=300),
 ):
     # Avoid swallowing dedicated paths
     reserved = {
@@ -633,7 +672,7 @@ def train_all_for_company_legacy(
                 model_type=model_name,
                 user_id=admin.id,
                 include_test=True,
-                epochs=100,
+                epochs=epochs,
             )
             start_training_job(job.id)
             results.append(job_to_dict(job))

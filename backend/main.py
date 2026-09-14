@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.database import Base, SessionLocal, engine
@@ -29,6 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 1. Include API Routers
 app.include_router(auth_router)
 app.include_router(companies_router)
 app.include_router(predictions_router)
@@ -36,10 +38,6 @@ app.include_router(training_router)
 app.include_router(scrape_router)
 app.include_router(train_router)
 app.include_router(admin_router)
-
-FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
-if FRONTEND_DIR.exists():
-    app.mount("/app", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 
 
 @app.on_event("startup")
@@ -52,11 +50,22 @@ def on_startup():
         db.close()
 
 
-@app.get("/")
+FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
+
+
+# 2. Serve index.html specifically at the root route
+@app.get("/", response_class=FileResponse)
 def root():
+    index_file = FRONTEND_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return {
         "status": "ok",
         "message": "StockPulse forecasting API",
-        "frontend": "/app/",
         "docs": "/docs",
     }
+
+
+# 3. Mount FRONTEND_DIR to root "/" AFTER API routes so static assets (style.css, app.js, predict.html) resolve properly
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

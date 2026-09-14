@@ -46,20 +46,11 @@
     <header class="top-header">
       <div class="header-title">
         <h1 id="pageTitle">Dashboard</h1>
-        <p>Manage users, companies, training, evaluation, and production models</p>
-      </div>
-      <div class="api-config">
-        <span class="status-indicator online"></span>
-        <input type="text" id="baseUrlInput" value="http://localhost:8000">
       </div>
     </header>
 
     <section id="admin-dashboard" class="admin-tab tab-content active">
       <div id="adminStats" class="metrics-grid"></div>
-      <div class="alert-banner info">
-        <i data-lucide="info"></i>
-        <span>Evaluation models use a held-out test from <strong>2025-01-01</strong>. Setting production retrains that architecture on <strong>all data</strong> for live predictions.</span>
-      </div>
     </section>
 
     <section id="admin-users" class="admin-tab tab-content">
