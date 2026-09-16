@@ -46,14 +46,19 @@ def on_startup():
     db = SessionLocal()
     try:
         bootstrap(db)
+        from backend.services.training import clear_stale_training_jobs
+
+        cleared = clear_stale_training_jobs(db)
+        if cleared:
+            print(f"Cleared {cleared} stale training job(s) on startup")
     finally:
         db.close()
 
 
-FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
+FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend" / "pages"
 
 
-# 2. Serve index.html specifically at the root route
+# 2. Serve dashboard (index.html) at the root route
 @app.get("/", response_class=FileResponse)
 def root():
     index_file = FRONTEND_DIR / "index.html"
@@ -66,6 +71,6 @@ def root():
     }
 
 
-# 3. Mount FRONTEND_DIR to root "/" AFTER API routes so static assets (style.css, app.js, predict.html) resolve properly
+# 3. Mount self-contained HTML pages at "/" (each page inlines its own CSS/JS)
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

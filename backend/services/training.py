@@ -20,9 +20,58 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _lock = threading.Lock()
 _active_threads: dict[int, threading.Thread] = {}
 
+STALE_JOB_ERROR = "Training interrupted (server restart or worker lost)"
+
 
 def _utcnow():
     return datetime.now(timezone.utc)
+
+
+def is_job_running(job_id: int) -> bool:
+    with _lock:
+        thread = _active_threads.get(job_id)
+        return bool(thread and thread.is_alive())
+
+
+def _mark_job_failed(db: Session, job: TrainingJob, error: str) -> None:
+    job.status = "failed"
+    job.error = error
+    job.completed_at = _utcnow()
+    if job.model_id:
+        model_record = (
+            db.query(ModelRecord).filter(ModelRecord.id == job.model_id).first()
+        )
+        if model_record and model_record.status == "training":
+            model_record.status = "failed"
+
+
+def clear_stale_training_jobs(db: Session | None = None) -> int:
+    """Mark queued/training jobs with no live worker as failed.
+
+    Daemon training threads die on process restart, but DB rows can stay
+    queued/training and block new jobs.
+    """
+    owns_session = db is None
+    if owns_session:
+        db = SessionLocal()
+    try:
+        candidates = (
+            db.query(TrainingJob)
+            .filter(TrainingJob.status.in_(["queued", "training"]))
+            .all()
+        )
+        cleared = 0
+        for job in candidates:
+            if is_job_running(job.id):
+                continue
+            _mark_job_failed(db, job, STALE_JOB_ERROR)
+            cleared += 1
+        if cleared:
+            db.commit()
+        return cleared
+    finally:
+        if owns_session:
+            db.close()
 
 
 def create_training_job(
@@ -53,11 +102,19 @@ def create_training_job(
         .first()
     )
     if active:
-        purpose = "evaluation" if include_test else "production"
-        raise ValueError(
-            f"{purpose.title()} training already in progress for "
-            f"{company.symbol} / {model_type}"
+        if is_job_running(active.id):
+            purpose = "evaluation" if include_test else "production"
+            raise ValueError(
+                f"{purpose.title()} training already in progress for "
+                f"{company.symbol} / {model_type}"
+            )
+        # Stale DB row (no live worker) — clear and allow a new job.
+        _mark_job_failed(
+            db,
+            active,
+            "Stale job cleared; replaced by a new training request",
         )
+        db.commit()
 
     records = ensure_model_records(db, company)
     model_record = next(r for r in records if r.model_type == model_type)
@@ -79,6 +136,53 @@ def create_training_job(
     return job
 
 
+def cancel_training_job(db: Session, job_id: int) -> TrainingJob:
+    job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+    if not job:
+        raise ValueError("Training job not found")
+    if job.status not in ("queued", "training"):
+        raise ValueError(f"Job {job_id} is already {job.status}")
+    _mark_job_failed(db, job, "Cancelled by admin")
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+def clear_failed_training_jobs(db: Session | None = None) -> int:
+    """Delete all failed training job records."""
+    owns_session = db is None
+    if owns_session:
+        db = SessionLocal()
+    try:
+        failed = (
+            db.query(TrainingJob)
+            .filter(TrainingJob.status == "failed")
+            .all()
+        )
+        count = len(failed)
+        for job in failed:
+            db.delete(job)
+        if count:
+            db.commit()
+        return count
+    finally:
+        if owns_session:
+            db.close()
+
+
+def delete_training_job(db: Session, job_id: int) -> None:
+    job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+    if not job:
+        raise ValueError("Training job not found")
+    if job.status in ("queued", "training") and is_job_running(job.id):
+        raise ValueError("Cannot delete a live running job; cancel it first")
+    if job.status in ("queued", "training"):
+        _mark_job_failed(db, job, "Removed by admin")
+        db.commit()
+    db.delete(job)
+    db.commit()
+
+
 def job_to_dict(job: TrainingJob) -> dict:
     purpose = PURPOSE_EVALUATION if job.include_test else PURPOSE_PRODUCTION
     return {
@@ -96,6 +200,7 @@ def job_to_dict(job: TrainingJob) -> dict:
         "validation_loss": job.validation_loss,
         "error": job.error,
         "include_test": job.include_test,
+        "is_running": is_job_running(job.id),
         "created_at": job.created_at.isoformat() if job.created_at else None,
     }
 
@@ -105,6 +210,8 @@ def _run_job(job_id: int) -> None:
     try:
         job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
         if not job:
+            return
+        if job.status == "failed":
             return
 
         company = db.query(Company).filter(Company.id == job.company_id).first()
@@ -124,7 +231,7 @@ def _run_job(job_id: int) -> None:
             session = SessionLocal()
             try:
                 j = session.query(TrainingJob).filter(TrainingJob.id == job_id).first()
-                if not j:
+                if not j or j.status == "failed":
                     return
                 j.current_epoch = epoch
                 j.total_epochs = total_epochs
@@ -152,6 +259,8 @@ def _run_job(job_id: int) -> None:
             )
 
         job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
+        if not job or job.status == "failed":
+            return
         model_record = (
             db.query(ModelRecord).filter(ModelRecord.id == job.model_id).first()
         )
@@ -175,7 +284,7 @@ def _run_job(job_id: int) -> None:
         db.commit()
     except Exception as exc:
         job = db.query(TrainingJob).filter(TrainingJob.id == job_id).first()
-        if job:
+        if job and job.status != "failed":
             job.status = "failed"
             job.error = str(exc)
             job.completed_at = _utcnow()

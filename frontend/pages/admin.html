@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — StockPulse.ai</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+:root {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --accent: #059669;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --warning: #d97706;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --sidebar-width: 250px;
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  display: flex;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: #ffffff;
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  z-index: 10;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
+}
+
+.logo { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+.logo-icon { color: var(--primary); }
+.logo h2 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; }
+.logo span { color: var(--primary); }
+
+.nav-menu { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; overflow-y: auto; }
+.nav-section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 0.75rem 1rem 0.25rem;
+  font-weight: 600;
+}
+
+.nav-btn {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem; background: transparent; border: none;
+  color: var(--text-muted); font-size: 0.9rem; font-weight: 500;
+  border-radius: 8px; cursor: pointer; transition: all var(--transition-fast);
+  text-align: left; text-decoration: none;
+}
+.nav-btn:hover { background: #f1f5f9; color: var(--text-main); }
+.nav-btn.active {
+  background: var(--primary); color: #ffffff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+.nav-btn .lock-badge { margin-left: auto; font-size: 0.75rem; opacity: 0.8; }
+
+.user-profile {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem; background: #f8fafc;
+  border: 1px solid var(--border-color); border-radius: 12px;
+}
+.avatar {
+  width: 36px; height: 36px; background: var(--primary); color: #fff;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 0.85rem;
+}
+.user-info { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.user-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.user-role { font-size: 0.75rem; color: var(--text-muted); }
+.icon-btn {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+}
+.icon-btn:hover { color: var(--text-main); background: #e2e8f0; }
+
+.main-content {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  padding: 2rem;
+  max-width: 1400px;
+  width: 100%;
+}
+
+.top-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
+}
+.header-title h1 { font-size: 1.75rem; font-weight: 700; }
+.header-title p { color: var(--text-muted); font-size: 0.9rem; }
+
+.api-config {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: #ffffff; padding: 0.5rem 1rem; border-radius: 30px;
+  border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.status-indicator { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+.status-indicator.online { background: var(--accent); box-shadow: 0 0 8px rgba(5,150,105,0.4); }
+.api-config input {
+  background: transparent; border: none; color: var(--text-main);
+  font-size: 0.85rem; outline: none; width: 180px;
+}
+
+.tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+.tab-content.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.card.metric { display: flex; align-items: center; gap: 1rem; }
+.card-icon {
+  width: 40px; height: 40px; padding: 8px;
+  background: #e0e7ff; color: var(--primary); border-radius: 10px;
+}
+.card h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+.metric p { font-size: 1.25rem; font-weight: 700; }
+.metric .metric-label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); }
+.section-desc { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem; }
+
+.input-group { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+.input-group label { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
+  background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px;
+  padding: 0.75rem 1rem; color: var(--text-main); font-size: 0.9rem; outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary); background: #fff;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+.input-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: -0.25rem;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  cursor: pointer;
+}
+.radio-group input {
+  accent-color: var(--primary);
+  width: auto;
+}
+
+.checkbox-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.checkbox-item:hover {
+  border-color: #c7d2fe;
+  background: #fff;
+}
+
+.checkbox-item input {
+  margin-top: 0.15rem;
+  accent-color: var(--primary);
+}
+
+.checkbox-item strong {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.checkbox-item small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.inline-input { display: flex; gap: 0.5rem; }
+.inline-input input, .inline-input select { flex: 1; }
+.stack-buttons { display: flex; flex-direction: column; gap: 1rem; }
+.divider { border: none; border-top: 1px solid var(--border-color); margin: 0.5rem 0; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.75rem 1.25rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; border: none; transition: all var(--transition-fast);
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-full { width: 100%; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-secondary { background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border-color); }
+.btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger-outline { background: #fef2f2; border: 1px solid #fca5a5; color: var(--danger); }
+.btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+
+.alert-banner {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+  padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;
+}
+.alert-banner.info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.alert-banner.warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.alert-banner.success { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+
+.response-box {
+  margin-top: 1.25rem; background: #0f172a; border: 1px solid #1e293b;
+  border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.85rem;
+  color: #34d399; max-height: 250px; overflow-y: auto; white-space: pre-wrap;
+}
+.response-box.error { color: #f87171; border-color: rgba(239,68,68,0.4); }
+.hidden { display: none !important; }
+
+.auth-page-body {
+  display: flex; align-items: center; justify-content: center;
+  width: 100vw; height: 100vh; background: #f1f5f9;
+}
+.auth-wrapper { width: 100%; max-width: 420px; padding: 1rem; }
+.auth-brand { text-align: center; margin-bottom: 1.5rem; }
+.logo-icon-lg { width: 48px; height: 48px; color: var(--primary); margin-bottom: 0.5rem; }
+.auth-brand h2 { font-size: 1.5rem; font-weight: 700; }
+.auth-brand span { color: var(--primary); }
+.auth-brand p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+.auth-card { box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
+.modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
+.auth-tab-btn {
+  flex: 1; padding: 0.75rem; background: none; border: none;
+  color: var(--text-muted); font-weight: 600; cursor: pointer;
+}
+.auth-tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+.auth-form { display: none; }
+.auth-form.active-form { display: block; }
+.auth-footer { margin-top: 1.5rem; text-align: center; }
+.back-link {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  color: var(--text-muted); text-decoration: none; font-size: 0.85rem; font-weight: 500;
+}
+.back-link:hover { color: var(--text-main); }
+
+.range-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.range-pill {
+  border: 1px solid var(--border-color); background: #fff; color: var(--text-muted);
+  padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.range-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.chart-wrap { position: relative; height: 320px; width: 100%; }
+.chart-wrap.tall { height: 380px; }
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+.stat-box {
+  background: #f8fafc; border: 1px solid var(--border-color);
+  border-radius: 12px; padding: 1rem;
+}
+.stat-box .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+.stat-box .value { font-size: 1.1rem; font-weight: 700; }
+.stat-box .value.up { color: var(--accent); }
+.stat-box .value.down { color: var(--danger); }
+
+.model-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+.model-card {
+  border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;
+  background: #fff;
+}
+.model-card.production { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(5,150,105,0.2); }
+.model-card h4 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.badge {
+  display: inline-flex; align-items: center; padding: 0.15rem 0.5rem;
+  border-radius: 999px; font-size: 0.7rem; font-weight: 700;
+}
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-yellow { background: #fef3c7; color: #92400e; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-gray { background: #e2e8f0; color: #475569; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+
+.table-wrap { overflow-x: auto; }
+table.data-table {
+  width: 100%; border-collapse: collapse; font-size: 0.875rem;
+}
+table.data-table th, table.data-table td {
+  text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border-color);
+}
+table.data-table th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+table.data-table tr:hover td { background: #f8fafc; }
+table.data-table .best { background: #ecfdf5; font-weight: 700; }
+
+.toolbar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+.toolbar select, .toolbar input { max-width: 220px; margin-bottom: 0; }
+
+.toast-container {
+  position: fixed; top: 1rem; right: 1rem; z-index: 1000;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.toast {
+  background: #0f172a; color: #fff; padding: 0.85rem 1rem; border-radius: 10px;
+  min-width: 260px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-size: 0.875rem;
+  animation: fadeIn 0.2s ease;
+}
+.toast.error { background: #991b1b; }
+.toast.success { background: #065f46; }
+
+.locked-panel {
+  text-align: center; padding: 3rem 1.5rem;
+  border: 1px dashed var(--border-color); border-radius: 16px; background: #fff;
+}
+.locked-panel h2 { margin: 1rem 0 0.5rem; }
+.locked-panel p { color: var(--text-muted); max-width: 420px; margin: 0 auto 1.5rem; }
+
+.action-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 8px; height: 1rem;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.empty-state {
+  text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.9rem;
+}
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 2000;
+  animation: fadeIn 0.15s ease;
+}
+.modal {
+  background: #fff; border-radius: 16px; padding: 1.5rem; width: min(420px, 92vw);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
+.modal h3 { margin-bottom: 0.5rem; }
+.modal p { color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9rem; line-height: 1.45; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+.modal-actions .btn { min-width: 88px; }
+
+@media (max-width: 900px) {
+  body { flex-direction: column; }
+  .sidebar {
+    position: relative; width: 100%; height: auto;
+    border-right: none; border-bottom: 1px solid var(--border-color);
+  }
+  .nav-menu { flex-direction: row; flex-wrap: wrap; }
+  .main-content { margin-left: 0; padding: 1rem; }
+}
+
+  </style>
+</head>
+<body data-page="admin">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <i data-lucide="trending-up" class="logo-icon"></i>
+      <h2>STOCK<span>.ML</span></h2>
+    </div>
+
+    <nav class="nav-menu">
+      <div class="nav-section-label">Admin</div>
+      <button class="nav-btn active" data-admin-tab="dashboard"><i data-lucide="layout-dashboard"></i> Dashboard</button>
+      <button class="nav-btn" data-admin-tab="training"><i data-lucide="cpu"></i> Training</button>
+      <button class="nav-btn" data-admin-tab="evaluation"><i data-lucide="line-chart"></i> Evaluation</button>
+      <button class="nav-btn" data-admin-tab="companies"><i data-lucide="building-2"></i> Companies</button>
+      <button class="nav-btn" data-admin-tab="users"><i data-lucide="users"></i> Users</button>
+      <button class="nav-btn" data-admin-tab="system"><i data-lucide="activity"></i> System Status</button>
+      <div class="nav-section-label">App</div>
+      <a href="index.html" class="nav-btn"><i data-lucide="globe"></i> Public Dashboard</a>
+    </nav>
+
+    <div class="user-profile">
+      <div class="avatar" id="userAvatar">A</div>
+      <div class="user-info">
+        <span class="user-name" id="userName">Admin</span>
+        <span class="user-role" id="userRole">ADMIN</span>
+      </div>
+      <a href="auth.html" id="authPageLink" class="icon-btn" title="Logout">
+        <i data-lucide="log-out"></i>
+      </a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-title">
+        <h1 id="pageTitle">Dashboard</h1>
+      </div>
+    </header>
+
+    <section id="admin-dashboard" class="admin-tab tab-content active">
+      <div id="adminStats" class="metrics-grid"></div>
+
+      <div class="card" style="margin-top:1.5rem">
+        <h3>NEPSE Data Scrape</h3>
+        <p class="section-desc">Fetch the latest market data from NEPSE. This may take several minutes — keep this tab open until it finishes.</p>
+        <button type="button" id="btnScrapeData" class="btn btn-primary">
+          <i data-lucide="download-cloud"></i> Scrape Data
+        </button>
+        <div id="scrapeStatus" style="margin-top:1rem"></div>
+      </div>
+    </section>
+
+    <section id="admin-users" class="admin-tab tab-content">
+      <div class="card">
+        <h3>User Management</h3>
+        <p class="section-desc">Authorize users for prediction access. Admins cannot be created via public registration.</p>
+        <div id="usersTable"></div>
+      </div>
+    </section>
+
+    <section id="admin-companies" class="admin-tab tab-content">
+      <div class="card">
+        <h3>Company Management</h3>
+        <div class="toolbar">
+          <input type="text" id="companySearch" placeholder="Search symbol or name">
+          <select id="companyFilter">
+            <option value="all">All</option>
+            <option value="trained">Trained</option>
+            <option value="untrained">Untrained</option>
+            <option value="training">Training</option>
+            <option value="failed">Failed</option>
+            <option value="evaluated">Evaluated</option>
+            <option value="not_evaluated">Not Evaluated</option>
+          </select>
+        </div>
+        <div id="companiesTable"></div>
+      </div>
+    </section>
+
+    <section id="admin-training" class="admin-tab tab-content">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Start Training</h3>
+          <p class="section-desc" id="trainPurposeDesc">
+            Evaluation trains with a held-out test split. Production trains on <strong>all available data</strong> via <code>user_train.py</code> for live predictions.
+          </p>
+          <form id="adminTrainForm">
+            <div class="input-group" id="trainPurposeGroup">
+              <label>Purpose</label>
+              <div class="radio-group">
+                <label><input type="radio" name="trainPurpose" value="evaluation" checked> Evaluation (held-out test)</label>
+                <label><input type="radio" name="trainPurpose" value="production"> Production (all available data)</label>
+              </div>
+            </div>
+            <div class="input-group" id="trainModeGroup">
+              <label>Training Scope</label>
+              <div class="radio-group">
+                <label><input type="radio" name="trainMode" value="one" checked> One company · one model</label>
+                <label><input type="radio" name="trainMode" value="company_all"> One company · all models</label>
+                <label><input type="radio" name="trainMode" value="all"> All companies · all models</label>
+              </div>
+            </div>
+            <div class="input-group" id="trainCompanyGroup">
+              <label>Company</label>
+              <select id="adminTrainCompany" data-company-select required></select>
+            </div>
+            <div class="input-group" id="trainModelGroup">
+              <label>Model</label>
+              <select id="adminTrainModel">
+                <option value="lstm">LSTM</option>
+                <option value="gru">GRU</option>
+                <option value="transformer">Transformer</option>
+              </select>
+            </div>
+            <div class="input-group" id="trainEpochsGroup">
+              <label>Epochs</label>
+              <input type="number" id="adminTrainEpochs" value="100" min="1" max="300">
+            </div>
+            <button type="submit" id="adminTrainSubmit" class="btn btn-danger btn-full"><i data-lucide="zap"></i> Train 1 Model</button>
+          </form>
+          <div id="adminJobStatus" style="margin-top:1rem"></div>
+        </div>
+        <div class="card">
+          <h3>Training Jobs</h3>
+          <p class="section-desc">Live job status from the database (poll after starting a job). Purpose column shows evaluation vs production.</p>
+          <div class="toolbar">
+            <button type="button" id="btnClearStaleJobs" class="btn btn-secondary btn-sm">
+              <i data-lucide="eraser"></i> Clear stuck jobs
+            </button>
+            <button type="button" id="btnClearFailedJobs" class="btn btn-danger-outline btn-sm">
+              <i data-lucide="trash-2"></i> Clear failed jobs
+            </button>
+            <button type="button" id="btnRefreshJobs" class="btn btn-secondary btn-sm">
+              <i data-lucide="refresh-cw"></i> Refresh
+            </button>
+          </div>
+          <div id="jobsTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="admin-evaluation" class="admin-tab tab-content">
+      <div class="card" style="margin-bottom:1.5rem">
+        <h3>Model Evaluation</h3>
+        <div class="toolbar">
+          <select id="evalCompany" data-company-select></select>
+          <button id="btnRunEvaluation" class="btn btn-primary"><i data-lucide="play"></i> Run Evaluation</button>
+        </div>
+        <div id="evalTable"></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Actual vs Predictions</h3>
+          <div class="range-pills" id="adminComparisonRangePills">
+            <button type="button" class="range-pill" data-cmp-range="1M">1M</button>
+            <button type="button" class="range-pill" data-cmp-range="3M">3M</button>
+            <button type="button" class="range-pill" data-cmp-range="6M">6M</button>
+            <button type="button" class="range-pill active" data-cmp-range="1Y">1Y</button>
+            <button type="button" class="range-pill" data-cmp-range="ALL">ALL</button>
+          </div>
+          <div id="adminComparisonEmpty" class="empty-state">Run evaluation to load comparison series.</div>
+          <div class="chart-wrap tall"><canvas id="adminComparisonChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Error Comparison</h3>
+          <div class="chart-wrap"><canvas id="metricsChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="admin-system" class="admin-tab tab-content">
+      <div class="card">
+        <h3>System Status</h3>
+        <div id="systemStatus"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+(() => {
+  const state = {
+    token: localStorage.getItem('jwt_token') || null,
+    baseUrl: localStorage.getItem('api_base_url') || 'http://localhost:8000',
+    user: null,
+    charts: {},
+    pollTimers: {},
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) lucide.createIcons();
+    ensureToastHost();
+    bindBaseUrl();
+    
+    checkCurrentUser().then(() => {
+      applyNavGuards();
+      bootPage();
+    });
+  });
+
+  function ensureToastHost() {
+    if (!document.getElementById('toastContainer')) {
+      const el = document.createElement('div');
+      el.id = 'toastContainer';
+      el.className = 'toast-container';
+      document.body.appendChild(el);
+    }
+  }
+
+  function toast(message, type = 'info') {
+    ensureToastHost();
+    const host = document.getElementById('toastContainer');
+    if (!host) return;
+    const el = document.createElement('div');
+    el.className = `toast ${type === 'error' ? 'error' : type === 'success' ? 'success' : ''}`;
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  function confirmModal({
+    title = 'Confirm',
+    message = 'Are you sure?',
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    danger = false,
+  } = {}) {
+    return new Promise((resolve) => {
+      document.getElementById('confirmModal')?.remove();
+      const backdrop = document.createElement('div');
+      backdrop.id = 'confirmModal';
+      backdrop.className = 'modal-backdrop';
+      backdrop.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+          <h3 id="confirmModalTitle">${title}</h3>
+          <p>${message}</p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-action="cancel">${cancelText}</button>
+            <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-action="confirm">${confirmText}</button>
+          </div>
+        </div>`;
+      const finish = (ok) => {
+        backdrop.remove();
+        document.removeEventListener('keydown', onKey);
+        resolve(ok);
+      };
+      const onKey = (e) => {
+        if (e.key === 'Escape') finish(false);
+        if (e.key === 'Enter') finish(true);
+      };
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) finish(false);
+      });
+      backdrop.querySelector('[data-action="cancel"]').addEventListener('click', () => finish(false));
+      backdrop.querySelector('[data-action="confirm"]').addEventListener('click', () => finish(true));
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(backdrop);
+      backdrop.querySelector('[data-action="confirm"]').focus();
+    });
+  }
+
+  function bindBaseUrl() {
+    const input = document.getElementById('baseUrlInput');
+    if (!input) return;
+    input.value = state.baseUrl;
+    input.addEventListener('change', (e) => {
+      state.baseUrl = e.target.value.replace(/\/$/, '');
+      localStorage.setItem('api_base_url', state.baseUrl);
+      toast('API base URL saved', 'success');
+    });
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const url = `${state.baseUrl}${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      ...(options.headers || {}),
+    };
+    const response = await fetch(url, { ...options, headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map((d) => d.msg || JSON.stringify(d)).join(', ')
+        : data.detail || data.message || `Error ${response.status}`;
+      const err = new Error(detail);
+      err.status = response.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function destroyChart(key) {
+    if (state.charts[key]) {
+      state.charts[key].destroy();
+      delete state.charts[key];
+    }
+  }
+
+  function makeChart(key, canvas, config) {
+    if (!window.Chart || !canvas) return null;
+    destroyChart(key);
+    state.charts[key] = new Chart(canvas.getContext('2d'), config);
+    return state.charts[key];
+  }
+
+  function formatRs(n) {
+    if (n == null || Number.isNaN(n)) return '—';
+    return `Rs. ${Number(n).toFixed(2)}`;
+  }
+
+  function formatPct(n) {
+    if (n == null || Number.isNaN(n)) return '—';
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${Number(n).toFixed(2)}%`;
+  }
+
+  function statusBadge(status) {
+    const s = (status || '').toLowerCase();
+    let cls = 'badge-gray';
+    if (s.includes('ready') || s.includes('evaluated') || s === 'trained' || s === 'completed') cls = 'badge-green';
+    else if (s.includes('training') || s.includes('pending') || s === 'queued') cls = 'badge-yellow';
+    else if (s.includes('fail')) cls = 'badge-red';
+    else if (s.includes('partial')) cls = 'badge-blue';
+    return `<span class="badge ${cls}">${status || 'Unknown'}</span>`;
+  }
+
+  async function checkCurrentUser() {
+    const nameEl = document.getElementById('userName');
+    const roleEl = document.getElementById('userRole');
+    const avatarEl = document.getElementById('userAvatar');
+    const statusTextEl = document.getElementById('authStatusText');
+    const authLink = document.getElementById('authPageLink');
+
+    if (!state.token) {
+      state.user = null;
+      if (statusTextEl) statusTextEl.innerText = 'Unauthenticated';
+      return null;
+    }
+
+    try {
+      const user = await apiFetch('/auth/me');
+      state.user = user;
+      if (nameEl) nameEl.innerText = user.username;
+      if (roleEl) roleEl.innerText = user.role + (user.is_authorized ? '' : ' · Pending');
+      if (avatarEl) avatarEl.innerText = (user.username || 'U')[0].toUpperCase();
+      if (statusTextEl) statusTextEl.innerText = 'Authenticated';
+      if (authLink) {
+        authLink.title = 'Logout';
+        authLink.innerHTML = '<i data-lucide="log-out"></i>';
+        authLink.href = '#';
+        authLink.onclick = async (e) => {
+          e.preventDefault();
+          try { await apiFetch('/auth/logout', { method: 'POST' }); } catch (_) {}
+          localStorage.removeItem('jwt_token');
+          state.token = null;
+          state.user = null;
+          window.location.href = 'index.html';
+        };
+        if (window.lucide) lucide.createIcons();
+      }
+      return user;
+    } catch (_) {
+      localStorage.removeItem('jwt_token');
+      state.token = null;
+      state.user = null;
+      if (statusTextEl) statusTextEl.innerText = 'Session Expired';
+      return null;
+    }
+  }
+
+  function applyNavGuards() {
+    const page = document.body.dataset.page;
+    const user = state.user;
+
+    document.querySelectorAll('[data-auth="user"]').forEach((el) => {
+      el.classList.toggle('hidden', !user || user.role === 'ADMIN');
+    });
+    document.querySelectorAll('[data-auth="guest"]').forEach((el) => {
+      el.classList.toggle('hidden', !!user);
+    });
+    document.querySelectorAll('[data-auth="admin"]').forEach((el) => {
+      el.classList.toggle('hidden', !(user && user.role === 'ADMIN'));
+    });
+    document.querySelectorAll('[data-auth="authed"]').forEach((el) => {
+      el.classList.toggle('hidden', !user);
+    });
+
+    const predictLink = document.getElementById('navPredict');
+    if (predictLink && user && user.role === 'USER' && !user.is_authorized) {
+      predictLink.innerHTML = '<i data-lucide="sparkles"></i> Predict <span class="lock-badge">🔒</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+
+    if (page === 'admin' && (!user || user.role !== 'ADMIN')) {
+      toast('Admin access required', 'error');
+      window.location.href = user ? 'index.html' : 'auth.html';
+      return;
+    }
+    if (page === 'predict' && (!user || user.role !== 'USER')) {
+      if (user && user.role === 'ADMIN') {
+        window.location.href = 'admin.html';
+        return;
+      }
+      toast('Please log in as a user to access predictions', 'error');
+      window.location.href = 'auth.html';
+    }
+  }
+
+  // -------------------- Admin --------------------
+  async function initAdmin() {
+    document.querySelectorAll('[data-admin-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.adminTab;
+        document.querySelectorAll('[data-admin-tab]').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.admin-tab').forEach((s) => s.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`admin-${tab}`)?.classList.add('active');
+        const title = document.getElementById('pageTitle');
+        if (title) title.textContent = btn.textContent.trim();
+        if (tab === 'dashboard') loadAdminStats();
+        if (tab === 'users') loadAdminUsers();
+        if (tab === 'companies') loadAdminCompanies();
+        if (tab === 'training') loadAdminTraining();
+        if (tab === 'evaluation') initAdminEvaluation();
+        if (tab === 'system') loadSystemStatus();
+      });
+    });
+    await loadAdminStats();
+    populateCompanySelects();
+    bindScrapeButton();
+  }
+
+  function bindScrapeButton() {
+    const btn = document.getElementById('btnScrapeData');
+    const status = document.getElementById('scrapeStatus');
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', async () => {
+      const ok = await confirmModal({
+        title: 'Start NEPSE scrape?',
+        message: 'This fetches the latest market data and may take several minutes. Keep this tab open until it finishes.',
+        confirmText: 'Start scrape',
+        cancelText: 'Cancel',
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      if (status) {
+        status.innerHTML = `${statusBadge('queued')} Scraping in progress…`;
+      }
+      try {
+        const res = await apiFetch('/scrape/', { method: 'POST' });
+        if (status) {
+          status.innerHTML = `${statusBadge('completed')} ${res.response || 'Data scrape successfully'}`;
+        }
+        toast(res.response || 'Data scrape completed', 'success');
+        loadAdminStats();
+      } catch (err) {
+        if (status) {
+          status.innerHTML = `${statusBadge('failed')} ${err.message}`;
+        }
+        toast(`Scrape failed: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  }
+
+  async function populateCompanySelects() {
+    try {
+      const res = await apiFetch('/companies');
+      const opts = (res.companies || []).map((c) => `<option value="${c.symbol}">${c.symbol}</option>`).join('');
+      document.querySelectorAll('[data-company-select]').forEach((el) => {
+        el.innerHTML = opts;
+      });
+    } catch (_) {}
+  }
+
+  async function loadAdminStats() {
+    try {
+      const s = await apiFetch('/admin/stats');
+      const el = document.getElementById('adminStats');
+      if (!el) return;
+      el.innerHTML = `
+        <div class="card metric"><div><p class="metric-label">Users</p><p>${s.users.total}</p></div></div>
+        <div class="card metric"><div><p class="metric-label">Authorized</p><p>${s.users.authorized}</p></div></div>
+        <div class="card metric"><div><p class="metric-label">Pending</p><p>${s.users.pending}</p></div></div>
+        <div class="card metric"><div><p class="metric-label">Companies</p><p>${s.companies.total}</p></div></div>
+        <div class="card metric"><div><p class="metric-label">Trained</p><p>${s.companies.trained}</p></div></div>
+        <div class="card metric"><div><p class="metric-label">Untrained</p><p>${s.companies.untrained}</p></div></div>
+        <div class="card metric"><div><p class="metric-label">Active Models</p><p>${s.active_models}</p></div></div>
+        <div class="card metric"><div><p class="metric-label">Failed Jobs</p><p>${s.failed_training_jobs}</p></div></div>`;
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async function loadAdminUsers() {
+    const el = document.getElementById('usersTable');
+    try {
+      const res = await apiFetch('/admin/users');
+      const users = res.users || [];
+      el.innerHTML = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Auth</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>${users.map((u) => `<tr>
+          <td>${u.id}</td><td>${u.username}</td><td>${u.email}</td><td>${u.role}</td>
+          <td>${u.is_authorized ? statusBadge('Authorized') : statusBadge('Pending')}</td>
+          <td>${u.is_active ? statusBadge('Active') : statusBadge('Inactive')}</td>
+          <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+          <td class="action-row">
+            ${u.role !== 'ADMIN' ? `<button class="btn btn-sm btn-accent" data-auth-user="${u.id}" data-val="${!u.is_authorized}">${u.is_authorized ? 'Revoke' : 'Authorize'}</button>` : ''}
+            <button class="btn btn-sm btn-secondary" data-status-user="${u.id}" data-val="${!u.is_active}">${u.is_active ? 'Deactivate' : 'Activate'}</button>
+            <button class="btn btn-sm btn-danger" data-del-user="${u.id}" data-role="${u.role}">Delete</button>
+          </td>
+        </tr>`).join('')}</tbody></table></div>`;
+
+      el.querySelectorAll('[data-auth-user]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          try {
+            await apiFetch(`/admin/users/${btn.dataset.authUser}/authorize`, {
+              method: 'PATCH',
+              body: JSON.stringify({ is_authorized: btn.dataset.val === 'true' }),
+            });
+            toast('Authorization updated', 'success');
+            loadAdminUsers();
+            loadAdminStats();
+          } catch (err) { toast(err.message, 'error'); }
+        });
+      });
+      el.querySelectorAll('[data-status-user]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          try {
+            await apiFetch(`/admin/users/${btn.dataset.statusUser}/status`, {
+              method: 'PATCH',
+              body: JSON.stringify({ is_active: btn.dataset.val === 'true' }),
+            });
+            toast('Status updated', 'success');
+            loadAdminUsers();
+          } catch (err) { toast(err.message, 'error'); }
+        });
+      });
+      el.querySelectorAll('[data-del-user]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const isAdmin = btn.dataset.role === 'ADMIN';
+          const ok = await confirmModal({
+            title: isAdmin ? 'Delete admin account?' : 'Delete user?',
+            message: isAdmin
+              ? 'This permanently removes an ADMIN account. This cannot be undone.'
+              : 'This permanently removes the user account. This cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            danger: true,
+          });
+          if (!ok) return;
+          try {
+            await apiFetch(`/admin/users/${btn.dataset.delUser}?confirm=${isAdmin}`, { method: 'DELETE' });
+            toast('User deleted', 'success');
+            loadAdminUsers();
+            loadAdminStats();
+          } catch (err) { toast(err.message, 'error'); }
+        });
+      });
+    } catch (err) {
+      el.innerHTML = `<div class="empty-state">${err.message}</div>`;
+    }
+  }
+
+  async function loadAdminCompanies() {
+    const el = document.getElementById('companiesTable');
+    const modelsEl = document.getElementById('companyModelsPanel');
+    const filter = document.getElementById('companyFilter')?.value || 'all';
+    const q = document.getElementById('companySearch')?.value || '';
+    try {
+      const res = await apiFetch(`/admin/companies?status=${encodeURIComponent(filter)}&q=${encodeURIComponent(q)}`);
+      const rows = res.companies || [];
+      el.innerHTML = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Company</th><th>LSTM</th><th>GRU</th><th>Transformer</th><th>Production</th><th>Status</th></tr></thead>
+        <tbody>${rows.map((c) => {
+          const mark = (m) => {
+            const ev = c.models?.[m]?.has_evaluation_weights ? 'E' : '·';
+            const pr = c.models?.[m]?.has_production_weights ? 'P' : '·';
+            return `${ev}/${pr}`;
+          };
+          return `<tr>
+            <td><strong>${c.symbol}</strong><br><small>${c.name || ''}</small></td>
+            <td>${mark('lstm')}</td><td>${mark('gru')}</td><td>${mark('transformer')}</td>
+            <td>${c.production_model || 'None'}</td>
+            <td>${statusBadge(c.training_status)}</td>
+          </tr>`;
+        }).join('')}</tbody></table></div>
+        <p class="section-desc" style="margin-top:0.75rem">E = evaluation weights (2025 hold-out) · P = production weights (all data)</p>`;
+
+      if (modelsEl) {
+        modelsEl.innerHTML = rows.map((c) => `
+          <div class="card" style="margin-bottom:1rem">
+            <h3>${c.symbol} <small style="color:var(--text-muted)">${c.name || ''}</small>
+              ${statusBadge(c.training_status)} Production: <strong>${c.production_model || 'None'}</strong></h3>
+            <div class="model-cards" style="margin-top:1rem">
+              ${['lstm','gru','transformer'].map((m) => {
+                const info = c.models?.[m] || {};
+                return `<div class="model-card ${info.is_production ? 'production' : ''}">
+                  <h4>${m.toUpperCase()} ${info.is_production ? '<span class="badge badge-green">Selected</span>' : ''}</h4>
+                  <p>Evaluation: ${info.has_evaluation_weights ? 'Yes' : 'No'}</p>
+                  <p>Production (all data): ${info.has_production_weights ? 'Yes' : 'No'}</p>
+                  <p>Status: ${info.status || 'not_trained'}</p>
+                  ${info.has_evaluation_weights && !info.is_production
+                    ? ``
+                    : ''}
+                  ${info.is_production && !info.has_production_weights
+                    ? ``
+                    : ''}
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`).join('') || '<div class="empty-state">No companies</div>';
+      }
+    } catch (err) {
+      el.innerHTML = `<div class="empty-state">${err.message}</div>`;
+      if (modelsEl) modelsEl.innerHTML = '';
+    }
+  }
+
+  document.getElementById('companyFilter')?.addEventListener('change', () => loadAdminCompanies());
+  document.getElementById('companySearch')?.addEventListener('input', () => {
+    clearTimeout(state._searchTimer);
+    state._searchTimer = setTimeout(loadAdminCompanies, 300);
+  });
+
+  function syncTrainModeUI() {
+    const mode = document.querySelector('input[name="trainMode"]:checked')?.value || 'one';
+    const purpose = document.querySelector('input[name="trainPurpose"]:checked')?.value || 'evaluation';
+    const companyGroup = document.getElementById('trainCompanyGroup');
+    const companySelect = document.getElementById('adminTrainCompany');
+    const modelGroup = document.getElementById('trainModelGroup');
+    const submit = document.getElementById('adminTrainSubmit');
+    const desc = document.getElementById('trainPurposeDesc');
+    if (companyGroup) companyGroup.classList.toggle('hidden', mode === 'all');
+    if (companySelect) companySelect.required = mode !== 'all';
+    if (modelGroup) modelGroup.classList.toggle('hidden', mode !== 'one');
+    if (desc) {
+      desc.innerHTML = purpose === 'production'
+        ? 'Production trains on <strong>all available data</strong> via <code>user_train.py</code> (no held-out split). Use this for live prediction weights.'
+        : 'Evaluation trains with a <strong>held-out test split</strong> for model comparison. Deploy production after you pick a winner.';
+    }
+    if (submit) {
+      const scopeLabels = {
+        one: 'Train 1 Model',
+        company_all: 'Train All 3 Models',
+        all: 'Train All Companies × All Models',
+      };
+      const purposeLabel = purpose === 'production' ? 'Production' : 'Evaluation';
+      submit.innerHTML = `<i data-lucide="zap"></i> ${purposeLabel}: ${scopeLabels[mode] || 'Start Training'}`;
+      submit.classList.toggle('btn-danger', purpose === 'evaluation');
+      submit.classList.toggle('btn-accent', purpose === 'production');
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  function pollJob(jobId, statusElId) {
+    const el = document.getElementById(statusElId);
+    if (state.pollTimers[jobId]) clearInterval(state.pollTimers[jobId]);
+    const tick = async () => {
+      try {
+        const job = await apiFetch(`/training/${jobId}`);
+        if (el) {
+          el.innerHTML = `${statusBadge(job.status)} ${job.company || ''} ${String(job.model_type || '').toUpperCase()} · ${job.purpose || ''}
+            · Epoch ${job.current_epoch || 0}/${job.total_epochs || '?'}
+            · loss ${job.train_loss != null ? job.train_loss.toFixed(6) : '—'}
+            · val ${job.validation_loss != null ? job.validation_loss.toFixed(6) : '—'}
+            ${job.error ? `<br><span style="color:#dc2626">${job.error}</span>` : ''}`;
+        }
+        if (['completed', 'failed'].includes(job.status)) {
+          clearInterval(state.pollTimers[jobId]);
+          delete state.pollTimers[jobId];
+          toast(`Training ${job.status}${job.company ? ` (${job.company}/${job.model_type})` : ''}`, job.status === 'completed' ? 'success' : 'error');
+          loadAdminJobs();
+        }
+      } catch (err) {
+        clearInterval(state.pollTimers[jobId]);
+        delete state.pollTimers[jobId];
+        if (el) el.innerHTML = `${statusBadge('failed')} ${err.message}`;
+        toast(`Job status error: ${err.message}`, 'error');
+      }
+    };
+    tick();
+    state.pollTimers[jobId] = setInterval(tick, 2500);
+  }
+
+  function startJobsTablePolling(durationMs = 120000) {
+    if (state.jobsTableTimer) clearInterval(state.jobsTableTimer);
+    loadAdminJobs();
+    state.jobsTableTimer = setInterval(() => loadAdminJobs(), 4000);
+    setTimeout(() => {
+      if (state.jobsTableTimer) {
+        clearInterval(state.jobsTableTimer);
+        state.jobsTableTimer = null;
+      }
+      loadAdminJobs();
+    }, durationMs);
+  }
+
+  async function loadAdminTraining() {
+    const form = document.getElementById('adminTrainForm');
+    const modeGroup = document.getElementById('trainModeGroup');
+    const purposeGroup = document.getElementById('trainPurposeGroup');
+
+    if (modeGroup && !modeGroup.dataset.bound) {
+      modeGroup.dataset.bound = '1';
+      modeGroup.querySelectorAll('input[name="trainMode"]').forEach((input) => {
+        input.addEventListener('change', syncTrainModeUI);
+      });
+    }
+    if (purposeGroup && !purposeGroup.dataset.bound) {
+      purposeGroup.dataset.bound = '1';
+      purposeGroup.querySelectorAll('input[name="trainPurpose"]').forEach((input) => {
+        input.addEventListener('change', syncTrainModeUI);
+      });
+    }
+    syncTrainModeUI();
+
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = '1';
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        const mode = document.querySelector('input[name="trainMode"]:checked')?.value || 'one';
+        const purpose = document.querySelector('input[name="trainPurpose"]:checked')?.value || 'evaluation';
+        const company = document.getElementById('adminTrainCompany')?.value;
+        const model = document.getElementById('adminTrainModel')?.value;
+        const epochs = Number(document.getElementById('adminTrainEpochs').value || 100);
+        btn.disabled = true;
+        try {
+          if (mode === 'one') {
+            const res = await apiFetch('/admin/training', {
+              method: 'POST',
+              body: JSON.stringify({ company, model, epochs, purpose }),
+            });
+            toast(`Queued ${purpose} ${model} training for ${company}`, 'success');
+            if (res.job?.id) pollJob(res.job.id, 'adminJobStatus');
+            startJobsTablePolling();
+          } else if (mode === 'company_all') {
+            const res = await apiFetch(
+              `/admin/${encodeURIComponent(company)}?epochs=${epochs}&purpose=${encodeURIComponent(purpose)}`,
+              { method: 'POST' }
+            );
+            const results = res.results || [];
+            const okJobs = results.filter((r) => r.id);
+            const errJobs = results.filter((r) => r.error);
+            const status = document.getElementById('adminJobStatus');
+            if (okJobs.length) {
+              toast(`Queued ${purpose} training for ${okJobs.length} model(s) on ${company}`, 'success');
+              if (okJobs[0]?.id) pollJob(okJobs[0].id, 'adminJobStatus');
+              startJobsTablePolling();
+            }
+            if (errJobs.length) {
+              toast(errJobs.map((e) => `${e.model}: ${e.error}`).join(' · '), 'error');
+              if (status && !okJobs.length) {
+                status.innerHTML = `${statusBadge('failed')} ${errJobs.map((e) => `${(e.model || '').toUpperCase()}: ${e.error}`).join('<br>')}`;
+              }
+            }
+            if (!okJobs.length && !errJobs.length) {
+              toast(res.response || 'No jobs queued', 'error');
+            }
+          } else {
+            const ok = await confirmModal({
+              title: `Queue ${purpose} training?`,
+              message: `This queues ${purpose} training for ALL companies × ALL models and can take a long time.`,
+              confirmText: 'Queue jobs',
+              cancelText: 'Cancel',
+              danger: purpose === 'evaluation',
+            });
+            if (!ok) {
+              btn.disabled = false;
+              return;
+            }
+            const res = await apiFetch(
+              `/admin/trainall?epochs=${epochs}&purpose=${encodeURIComponent(purpose)}`,
+              { method: 'POST' }
+            );
+            toast(res.message || `Queued ${res.queued?.length || 0} ${purpose} jobs`, res.queued?.length ? 'success' : 'error');
+            const status = document.getElementById('adminJobStatus');
+            if (status) {
+              let html = `${statusBadge(res.queued?.length ? 'queued' : 'failed')} Queued ${res.queued?.length || 0} ${purpose} jobs`;
+              if (res.errors?.length) {
+                html += ` · ${res.errors.length} skipped`;
+                html += `<div style="margin-top:0.5rem;font-size:0.85rem">${res.errors.slice(0, 5).map((e) => `${e.company}/${e.model}: ${e.error}`).join('<br>')}</div>`;
+              }
+              status.innerHTML = html;
+            }
+            if (res.queued?.length) {
+              const firstJob = res.queued[0];
+              if (firstJob?.id) pollJob(firstJob.id, 'adminJobStatus');
+              startJobsTablePolling(300000);
+            }
+          }
+          loadAdminJobs();
+        } catch (err) { toast(err.message, 'error'); }
+        finally { btn.disabled = false; }
+      });
+    }
+    loadAdminJobs();
+    bindTrainingJobToolbar();
+  }
+
+  async function loadAdminJobs() {
+    const el = document.getElementById('jobsTable');
+    if (!el) return;
+    try {
+      const res = await apiFetch('/admin/training/jobs');
+      const jobs = res.jobs || [];
+      if (!jobs.length) {
+        el.innerHTML = '<div class="empty-state">No training jobs yet.</div>';
+        return;
+      }
+      el.innerHTML = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>ID</th><th>Company</th><th>Model</th><th>Purpose</th><th>Status</th><th>Epoch</th><th>Loss</th><th>Val/Test Loss</th><th>Started</th><th></th></tr></thead>
+        <tbody>${jobs.map((j) => `<tr>
+          <td>${j.id}</td><td>${j.company}</td><td>${j.model_type}</td>
+          <td>${j.purpose || (j.include_test ? 'evaluation' : 'production')}</td>
+          <td>${statusBadge(j.status)}${j.is_running ? ' <span class="badge badge-blue">live</span>' : (['queued','training'].includes(j.status) ? ' <span class="badge badge-yellow">stuck?</span>' : '')}</td>
+          <td>${j.current_epoch}/${j.total_epochs}</td>
+          <td>${j.train_loss != null ? j.train_loss.toFixed(5) : '—'}</td>
+          <td>${j.validation_loss != null ? j.validation_loss.toFixed(5) : '—'}</td>
+          <td>${j.started_at ? new Date(j.started_at).toLocaleString() : '—'}</td>
+          <td>${['queued','training'].includes(j.status) ? `<button class="btn btn-sm btn-danger" data-cancel-job="${j.id}">Cancel</button>` : ''}</td>
+        </tr>`).join('')}</tbody></table></div>`;
+
+      el.querySelectorAll('[data-cancel-job]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const ok = await confirmModal({
+            title: 'Cancel training job?',
+            message: `Mark job #${btn.dataset.cancelJob} as cancelled so you can start a new one.`,
+            confirmText: 'Cancel job',
+            cancelText: 'Keep',
+            danger: true,
+          });
+          if (!ok) return;
+          try {
+            await apiFetch(`/admin/training/jobs/${btn.dataset.cancelJob}/cancel`, { method: 'POST' });
+            toast('Job cancelled', 'success');
+            loadAdminJobs();
+          } catch (err) { toast(err.message, 'error'); }
+        });
+      });
+    } catch (err) {
+      el.innerHTML = `<div class="empty-state">${err.message}</div>`;
+    }
+  }
+
+  function bindTrainingJobToolbar() {
+    const clearBtn = document.getElementById('btnClearStaleJobs');
+    const failedBtn = document.getElementById('btnClearFailedJobs');
+    const refreshBtn = document.getElementById('btnRefreshJobs');
+    if (clearBtn && !clearBtn.dataset.bound) {
+      clearBtn.dataset.bound = '1';
+      clearBtn.addEventListener('click', async () => {
+        const ok = await confirmModal({
+          title: 'Clear stuck jobs?',
+          message: 'Marks queued/training jobs with no live worker as failed so new training can start.',
+          confirmText: 'Clear stuck',
+          cancelText: 'Cancel',
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          const res = await apiFetch('/admin/training/jobs/clear-stale', { method: 'POST' });
+          toast(res.message || `Cleared ${res.cleared || 0} job(s)`, 'success');
+          loadAdminJobs();
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    }
+    if (failedBtn && !failedBtn.dataset.bound) {
+      failedBtn.dataset.bound = '1';
+      failedBtn.addEventListener('click', async () => {
+        const ok = await confirmModal({
+          title: 'Clear failed jobs?',
+          message: 'Permanently deletes all failed training job records from the database. This cannot be undone.',
+          confirmText: 'Delete failed',
+          cancelText: 'Cancel',
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          const res = await apiFetch('/admin/training/jobs/clear-failed', { method: 'POST' });
+          toast(res.message || `Cleared ${res.cleared || 0} job(s)`, 'success');
+          loadAdminJobs();
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    }
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+      refreshBtn.dataset.bound = '1';
+      refreshBtn.addEventListener('click', () => loadAdminJobs());
+    }
+  }
+
+  function initAdminEvaluation() {
+    const btn = document.getElementById('btnRunEvaluation');
+    const select = document.getElementById('evalCompany');
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await apiFetch(`/admin/companies/${select.value}/evaluate`, { method: 'POST' });
+          toast('Evaluation completed', 'success');
+          await loadEvaluation(select.value);
+        } catch (err) { toast(err.message, 'error'); }
+        finally { btn.disabled = false; }
+      });
+      select?.addEventListener('change', () => loadEvaluation(select.value));
+    }
+
+    const rangeHost = document.getElementById('adminComparisonRangePills');
+    if (rangeHost && !rangeHost.dataset.bound) {
+      rangeHost.dataset.bound = '1';
+      rangeHost.querySelectorAll('.range-pill').forEach((pill) => {
+        pill.addEventListener('click', () => {
+          rangeHost.querySelectorAll('.range-pill').forEach((b) => b.classList.remove('active'));
+          pill.classList.add('active');
+          if (state.adminEvalSeries) {
+            renderAdminComparisonChart(state.adminEvalSymbol, state.adminEvalSeries);
+          }
+        });
+      });
+    }
+
+    if (select?.value) loadEvaluation(select.value);
+  }
+
+  function sliceSeriesByRange(series, rangeKey) {
+    if (!series?.dates?.length) return series;
+    const key = (rangeKey || '1Y').toUpperCase().replace('YR', 'Y');
+    if (key === 'ALL') return series;
+
+    const months = { '1M': 1, '3M': 3, '6M': 6, '1Y': 12 }[key];
+    if (!months) return series;
+
+    const end = new Date(series.dates[series.dates.length - 1]);
+    if (Number.isNaN(end.getTime())) return series;
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - months);
+
+    const dates = [];
+    const actual = [];
+    const predicted = series.predicted ? [] : undefined;
+    series.dates.forEach((d, i) => {
+      const dt = new Date(d);
+      if (Number.isNaN(dt.getTime()) || dt < start) return;
+      dates.push(d);
+      if (series.actual) actual.push(series.actual[i]);
+      if (predicted) predicted.push(series.predicted[i]);
+    });
+    return {
+      ...series,
+      dates,
+      actual: series.actual ? actual : series.actual,
+      predicted: predicted || series.predicted,
+    };
+  }
+
+  function renderAdminComparisonChart(symbol, withSeries) {
+    const chartCanvas = document.getElementById('adminComparisonChart');
+    if (!chartCanvas) return;
+    const range = document.querySelector('#adminComparisonRangePills .range-pill.active')?.dataset.cmpRange || '1Y';
+    const sliced = withSeries.map((e) => ({
+      ...e,
+      series: sliceSeriesByRange(e.series, range),
+    })).filter((e) => e.series.dates?.length);
+
+    if (!sliced.length) {
+      document.getElementById('adminComparisonEmpty')?.classList.remove('hidden');
+      const empty = document.getElementById('adminComparisonEmpty');
+      if (empty) empty.textContent = `No evaluation points in the selected ${range} range.`;
+      destroyChart('adminComparison');
+      return;
+    }
+
+    document.getElementById('adminComparisonEmpty')?.classList.add('hidden');
+    const base = sliced[0].series;
+    const colors = { lstm: '#f97316', gru: '#16a34a', transformer: '#dc2626' };
+    const styles = { lstm: [6, 4], gru: [2, 3], transformer: [8, 3, 2, 3] };
+    makeChart('adminComparison', chartCanvas, {
+      type: 'line',
+      data: {
+        labels: base.dates,
+        datasets: [
+          { label: 'Actual Price', data: base.actual, borderColor: '#2563eb', borderWidth: 2, pointRadius: 0 },
+          ...sliced.map((e) => ({
+            label: `${e.model.toUpperCase()} Prediction`,
+            data: e.series.predicted,
+            borderColor: colors[e.model],
+            borderDash: styles[e.model],
+            borderWidth: 2,
+            pointRadius: 0,
+          })),
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: `${symbol} Actual vs Predictions (${range})` },
+          legend: { position: 'top' },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Date' }, ticks: { maxTicksLimit: 10 } },
+          y: { title: { display: true, text: 'Stock Price' } },
+        },
+      },
+    });
+  }
+
+  async function loadEvaluation(symbol) {
+    const tableEl = document.getElementById('evalTable');
+    try {
+      const res = await apiFetch(`/admin/evaluations/${encodeURIComponent(symbol)}`);
+      const evals = res.evaluations || [];
+      const metrics = evals.filter((e) => e.metrics);
+      const best = {};
+      ['mae', 'rmse', 'mape', 'r2', 'directional_accuracy'].forEach((k) => {
+        if (!metrics.length) return;
+        const higherBetter = k === 'r2' || k === 'directional_accuracy';
+        const sorted = [...metrics].sort((a, b) =>
+          higherBetter ? (b.metrics[k] ?? -Infinity) - (a.metrics[k] ?? -Infinity)
+            : (a.metrics[k] ?? Infinity) - (b.metrics[k] ?? Infinity)
+        );
+        best[k] = sorted[0]?.model;
+      });
+
+      tableEl.innerHTML = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>MAPE</th><th>R²</th><th>Dir. Acc</th><th>Production</th></tr></thead>
+        <tbody>${evals.map((e) => {
+          const m = e.metrics || {};
+          const cell = (k, fmt) => {
+            const v = m[k];
+            if (v == null) return '<td>—</td>';
+            const cls = best[k] === e.model ? 'best' : '';
+            return `<td class="${cls}">${fmt(v)}</td>`;
+          };
+          return `<tr>
+            <td><strong>${e.model.toUpperCase()}</strong></td>
+            ${cell('mae', (v) => v.toFixed(3))}
+            ${cell('rmse', (v) => v.toFixed(3))}
+            ${cell('mape', (v) => v.toFixed(2) + '%')}
+            ${cell('r2', (v) => v.toFixed(3))}
+            ${cell('directional_accuracy', (v) => v.toFixed(2) + '%')}
+            <td>${e.is_production ? statusBadge('YES') : '—'}
+              ${e.is_production && !e.has_production_weights ? `<span class="badge badge-yellow">Deploying/pending</span>` : ''}
+              ${e.has_production_weights ? '<span class="badge badge-blue">Prod ready</span>' : ''}
+            </td>
+          </tr>`;
+        }).join('')}</tbody></table></div>`;
+
+      const withSeries = evals.filter((e) => e.series?.dates?.length);
+      state.adminEvalSymbol = symbol;
+      state.adminEvalSeries = withSeries;
+      if (withSeries.length) {
+        renderAdminComparisonChart(symbol, withSeries);
+
+        makeChart('adminMetrics', document.getElementById('metricsChart'), {
+          type: 'bar',
+          data: {
+            labels: metrics.map((e) => e.model.toUpperCase()),
+            datasets: [
+              { label: 'MAE', data: metrics.map((e) => e.metrics.mae), backgroundColor: '#6366f1' },
+              { label: 'RMSE', data: metrics.map((e) => e.metrics.rmse), backgroundColor: '#f59e0b' },
+            ],
+          },
+          options: { responsive: true, maintainAspectRatio: false },
+        });
+      } else {
+        document.getElementById('adminComparisonEmpty')?.classList.remove('hidden');
+        const empty = document.getElementById('adminComparisonEmpty');
+        if (empty) empty.textContent = 'Run evaluation to load comparison series.';
+        destroyChart('adminComparison');
+        destroyChart('adminMetrics');
+      }
+    } catch (err) {
+      tableEl.innerHTML = `<div class="empty-state">${err.message}</div>`;
+    }
+  }
+
+  async function loadSystemStatus() {
+    const el = document.getElementById('systemStatus');
+    try {
+      const s = await apiFetch('/admin/system');
+      el.innerHTML = `<div class="overview-grid">
+        <div class="stat-box"><div class="label">API</div><div class="value">${s.api}</div></div>
+        <div class="stat-box"><div class="label">Database</div><div class="value">${s.database}</div></div>
+        <div class="stat-box"><div class="label">Active Jobs</div><div class="value">${s.active_training_jobs}</div></div>
+        <div class="stat-box"><div class="label">Companies</div><div class="value">${s.companies}</div></div>
+        <div class="stat-box"><div class="label">Models Tracked</div><div class="value">${s.models_tracked}</div></div>
+        <div class="stat-box"><div class="label">Evaluations</div><div class="value">${s.evaluations}</div></div>
+      </div>`;
+    } catch (err) {
+      el.innerHTML = `<div class="empty-state">${err.message}</div>`;
+    }
+  }
+
+  // expose for inline handlers if needed
+  window.StockPulse = { apiFetch, toast, loadAdminCompanies };
+
+  async function bootPage() {
+    await initAdmin();
+  }
+
+  window.StockPulse = { apiFetch, toast, loadAdminCompanies };
+})();
+
+  </script>
+</body>
+</html>

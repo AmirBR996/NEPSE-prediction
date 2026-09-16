@@ -1,3 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authentication — StockPulse.ai</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
 :root {
   --bg-main: #f8fafc;
   --bg-card: #ffffff;
@@ -397,3 +406,337 @@ table.data-table .best { background: #ecfdf5; font-weight: 700; }
   .nav-menu { flex-direction: row; flex-wrap: wrap; }
   .main-content { margin-left: 0; padding: 1rem; }
 }
+
+  </style>
+</head>
+<body class="auth-page-body" data-page="auth">
+
+  <div class="auth-wrapper">
+    <div class="auth-brand">
+      <i data-lucide="trending-up" class="logo-icon-lg"></i>
+      <h2>Stock<span>.ml</span></h2>
+      <p>Sign in to predict</p>
+    </div>
+
+    <div class="card auth-card">
+      <div class="modal-tabs">
+        <button class="auth-tab-btn active" id="tabBtnLogin">Login</button>
+        <button class="auth-tab-btn" id="tabBtnRegister">Register</button>
+      </div>
+
+      <form id="loginForm" class="auth-form active-form">
+        <div class="input-group">
+          <label for="loginUsername">Email / Username</label>
+          <input type="text" id="loginUsername" placeholder="Enter username or email" required>
+        </div>
+        <div class="input-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Login</button>
+      </form>
+
+      <form id="registerForm" class="auth-form">
+        <div class="input-group">
+          <label for="regUsername">Username</label>
+          <input type="text" id="regUsername" placeholder="Choose a username" required>
+        </div>
+        <div class="input-group">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" placeholder="name@company.com" required>
+        </div>
+        <div class="input-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+        </div>
+        <div class="input-group">
+          <label for="regConfirmPassword">Confirm Password</label>
+          <input type="password" id="regConfirmPassword" placeholder="••••••••" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Register</button>
+      </form>
+
+      <div class="auth-footer">
+        <a href="index.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(() => {
+  const state = {
+    token: localStorage.getItem('jwt_token') || null,
+    baseUrl: localStorage.getItem('api_base_url') || 'http://localhost:8000',
+    user: null,
+    charts: {},
+    pollTimers: {},
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) lucide.createIcons();
+    ensureToastHost();
+    bindBaseUrl();
+    bindAuthForms();
+    bindAuthTabs();
+    checkCurrentUser().then(() => {
+      applyNavGuards();
+      bootPage();
+    });
+  });
+
+  function ensureToastHost() {
+    if (!document.getElementById('toastContainer')) {
+      const el = document.createElement('div');
+      el.id = 'toastContainer';
+      el.className = 'toast-container';
+      document.body.appendChild(el);
+    }
+  }
+
+  function toast(message, type = 'info') {
+    const host = document.getElementById('toastContainer');
+    if (!host) return alert(message);
+    const el = document.createElement('div');
+    el.className = `toast ${type === 'error' ? 'error' : type === 'success' ? 'success' : ''}`;
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  function bindBaseUrl() {
+    const input = document.getElementById('baseUrlInput');
+    if (!input) return;
+    input.value = state.baseUrl;
+    input.addEventListener('change', (e) => {
+      state.baseUrl = e.target.value.replace(/\/$/, '');
+      localStorage.setItem('api_base_url', state.baseUrl);
+      toast('API base URL saved', 'success');
+    });
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const url = `${state.baseUrl}${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      ...(options.headers || {}),
+    };
+    const response = await fetch(url, { ...options, headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map((d) => d.msg || JSON.stringify(d)).join(', ')
+        : data.detail || data.message || `Error ${response.status}`;
+      const err = new Error(detail);
+      err.status = response.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function destroyChart(key) {
+    if (state.charts[key]) {
+      state.charts[key].destroy();
+      delete state.charts[key];
+    }
+  }
+
+  function makeChart(key, canvas, config) {
+    if (!window.Chart || !canvas) return null;
+    destroyChart(key);
+    state.charts[key] = new Chart(canvas.getContext('2d'), config);
+    return state.charts[key];
+  }
+
+  function formatRs(n) {
+    if (n == null || Number.isNaN(n)) return '—';
+    return `Rs. ${Number(n).toFixed(2)}`;
+  }
+
+  function formatPct(n) {
+    if (n == null || Number.isNaN(n)) return '—';
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${Number(n).toFixed(2)}%`;
+  }
+
+  function statusBadge(status) {
+    const s = (status || '').toLowerCase();
+    let cls = 'badge-gray';
+    if (s.includes('ready') || s.includes('evaluated') || s === 'trained' || s === 'completed') cls = 'badge-green';
+    else if (s.includes('training') || s.includes('pending') || s === 'queued') cls = 'badge-yellow';
+    else if (s.includes('fail')) cls = 'badge-red';
+    else if (s.includes('partial')) cls = 'badge-blue';
+    return `<span class="badge ${cls}">${status || 'Unknown'}</span>`;
+  }
+
+  async function checkCurrentUser() {
+    const nameEl = document.getElementById('userName');
+    const roleEl = document.getElementById('userRole');
+    const avatarEl = document.getElementById('userAvatar');
+    const statusTextEl = document.getElementById('authStatusText');
+    const authLink = document.getElementById('authPageLink');
+
+    if (!state.token) {
+      state.user = null;
+      if (statusTextEl) statusTextEl.innerText = 'Unauthenticated';
+      return null;
+    }
+
+    try {
+      const user = await apiFetch('/auth/me');
+      state.user = user;
+      if (nameEl) nameEl.innerText = user.username;
+      if (roleEl) roleEl.innerText = user.role + (user.is_authorized ? '' : ' · Pending');
+      if (avatarEl) avatarEl.innerText = (user.username || 'U')[0].toUpperCase();
+      if (statusTextEl) statusTextEl.innerText = 'Authenticated';
+      if (authLink) {
+        authLink.title = 'Logout';
+        authLink.innerHTML = '<i data-lucide="log-out"></i>';
+        authLink.href = '#';
+        authLink.onclick = async (e) => {
+          e.preventDefault();
+          try { await apiFetch('/auth/logout', { method: 'POST' }); } catch (_) {}
+          localStorage.removeItem('jwt_token');
+          state.token = null;
+          state.user = null;
+          window.location.href = 'index.html';
+        };
+        if (window.lucide) lucide.createIcons();
+      }
+      return user;
+    } catch (_) {
+      localStorage.removeItem('jwt_token');
+      state.token = null;
+      state.user = null;
+      if (statusTextEl) statusTextEl.innerText = 'Session Expired';
+      return null;
+    }
+  }
+
+  function applyNavGuards() {
+    const page = document.body.dataset.page;
+    const user = state.user;
+
+    document.querySelectorAll('[data-auth="user"]').forEach((el) => {
+      el.classList.toggle('hidden', !user || user.role === 'ADMIN');
+    });
+    document.querySelectorAll('[data-auth="guest"]').forEach((el) => {
+      el.classList.toggle('hidden', !!user);
+    });
+    document.querySelectorAll('[data-auth="admin"]').forEach((el) => {
+      el.classList.toggle('hidden', !(user && user.role === 'ADMIN'));
+    });
+    document.querySelectorAll('[data-auth="authed"]').forEach((el) => {
+      el.classList.toggle('hidden', !user);
+    });
+
+    const predictLink = document.getElementById('navPredict');
+    if (predictLink && user && user.role === 'USER' && !user.is_authorized) {
+      predictLink.innerHTML = '<i data-lucide="sparkles"></i> Predict <span class="lock-badge">🔒</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+
+    if (page === 'admin' && (!user || user.role !== 'ADMIN')) {
+      toast('Admin access required', 'error');
+      window.location.href = user ? 'index.html' : 'auth.html';
+      return;
+    }
+    if (page === 'predict' && (!user || user.role !== 'USER')) {
+      if (user && user.role === 'ADMIN') {
+        window.location.href = 'admin.html';
+        return;
+      }
+      toast('Please log in as a user to access predictions', 'error');
+      window.location.href = 'auth.html';
+    }
+  }
+
+  function bindAuthTabs() {
+    const tabBtnLogin = document.getElementById('tabBtnLogin');
+    const tabBtnRegister = document.getElementById('tabBtnRegister');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    if (!tabBtnLogin || !tabBtnRegister) return;
+    tabBtnLogin.addEventListener('click', () => {
+      tabBtnLogin.classList.add('active');
+      tabBtnRegister.classList.remove('active');
+      loginForm.classList.add('active-form');
+      registerForm.classList.remove('active-form');
+    });
+    tabBtnRegister.addEventListener('click', () => {
+      tabBtnRegister.classList.add('active');
+      tabBtnLogin.classList.remove('active');
+      registerForm.classList.add('active-form');
+      loginForm.classList.remove('active-form');
+    });
+  }
+
+  function bindAuthForms() {
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = loginForm.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        try {
+          const data = await apiFetch('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({
+              username: document.getElementById('loginUsername').value,
+              password: document.getElementById('loginPassword').value,
+            }),
+          });
+          state.token = data.access_token;
+          localStorage.setItem('jwt_token', state.token);
+          toast('Login successful', 'success');
+          window.location.href = data.role === 'ADMIN' ? 'admin.html' : 'index.html';
+        } catch (err) {
+          toast(`Login failed: ${err.message}`, 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+
+    if (registerForm) {
+      registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const password = document.getElementById('regPassword').value;
+        const confirm = document.getElementById('regConfirmPassword')?.value;
+        if (confirm != null && password !== confirm) {
+          toast('Passwords do not match', 'error');
+          return;
+        }
+        const btn = registerForm.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        try {
+          await apiFetch('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+              email: document.getElementById('regEmail').value,
+              username: document.getElementById('regUsername').value,
+              password,
+              confirm_password: confirm,
+            }),
+          });
+          toast('Registration successful. Please log in.', 'success');
+          document.getElementById('tabBtnLogin')?.click();
+        } catch (err) {
+          toast(`Registration failed: ${err.message}`, 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+  }
+
+  async function bootPage() {
+    // auth page only
+  }
+})();
+
+  </script>
+</body>
+</html>

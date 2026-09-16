@@ -24,9 +24,11 @@ stock/
 │       ├── scrape.py
 │       └── train.py
 ├── frontend/
-│   ├── app.js
-│   ├── index.html
-│   └── style.css
+│   └── pages/                 # self-contained HTML (CSS + JS inlined)
+│       ├── index.html         # dashboard
+│       ├── auth.html
+│       ├── predict.html
+│       └── admin.html
 ├── scraper/
 │   ├── nepse_data_scraper.py
 │   ├── filter_data.py
@@ -79,9 +81,16 @@ The backend currently exposes these route groups:
 
 ## Run The Frontend
 
-The frontend is a static HTML/CSS/JS app in `frontend/`.
+The frontend lives in `frontend/pages/`. Each page is a single self-contained HTML file with its CSS and JS inlined (no shared `style.css` / `app.js`).
 
-Open `frontend/index.html` with a static server or a live preview extension. If the frontend is served from a different origin, set `API_BASE` in `frontend/app.js` to the backend URL.
+| Page | File | Purpose |
+|------|------|---------|
+| Dashboard | `pages/index.html` | Market overview & charts |
+| Auth | `pages/auth.html` | Login / register |
+| Predict | `pages/predict.html` | User forecasts & training |
+| Admin | `pages/admin.html` | Users, training, evaluation |
+
+The FastAPI app serves these from `/` (see `backend/main.py`). To change the API host from the browser, set `localStorage.api_base_url` (default `http://localhost:8000`).
 
 ## Training And Data
 

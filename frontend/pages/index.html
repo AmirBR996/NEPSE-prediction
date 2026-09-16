@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — STOCK.ML</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+:root {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --accent: #059669;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --warning: #d97706;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --sidebar-width: 250px;
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  display: flex;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: #ffffff;
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  z-index: 10;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
+}
+
+.logo { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+.logo-icon { color: var(--primary); }
+.logo h2 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; }
+.logo span { color: var(--primary); }
+
+.nav-menu { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; overflow-y: auto; }
+.nav-section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 0.75rem 1rem 0.25rem;
+  font-weight: 600;
+}
+
+.nav-btn {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem; background: transparent; border: none;
+  color: var(--text-muted); font-size: 0.9rem; font-weight: 500;
+  border-radius: 8px; cursor: pointer; transition: all var(--transition-fast);
+  text-align: left; text-decoration: none;
+}
+.nav-btn:hover { background: #f1f5f9; color: var(--text-main); }
+.nav-btn.active {
+  background: var(--primary); color: #ffffff;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+.nav-btn .lock-badge { margin-left: auto; font-size: 0.75rem; opacity: 0.8; }
+
+.user-profile {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem; background: #f8fafc;
+  border: 1px solid var(--border-color); border-radius: 12px;
+}
+.avatar {
+  width: 36px; height: 36px; background: var(--primary); color: #fff;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 0.85rem;
+}
+.user-info { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.user-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.user-role { font-size: 0.75rem; color: var(--text-muted); }
+.icon-btn {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+}
+.icon-btn:hover { color: var(--text-main); background: #e2e8f0; }
+
+.main-content {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  padding: 2rem;
+  max-width: 1400px;
+  width: 100%;
+}
+
+.top-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
+}
+.header-title h1 { font-size: 1.75rem; font-weight: 700; }
+.header-title p { color: var(--text-muted); font-size: 0.9rem; }
+
+.api-config {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: #ffffff; padding: 0.5rem 1rem; border-radius: 30px;
+  border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.status-indicator { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+.status-indicator.online { background: var(--accent); box-shadow: 0 0 8px rgba(5,150,105,0.4); }
+.api-config input {
+  background: transparent; border: none; color: var(--text-main);
+  font-size: 0.85rem; outline: none; width: 180px;
+}
+
+.tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+.tab-content.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.card.metric { display: flex; align-items: center; gap: 1rem; }
+.card-icon {
+  width: 40px; height: 40px; padding: 8px;
+  background: #e0e7ff; color: var(--primary); border-radius: 10px;
+}
+.card h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+.metric p { font-size: 1.25rem; font-weight: 700; }
+.metric .metric-label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); }
+.section-desc { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem; }
+
+.input-group { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+.input-group label { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
+  background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px;
+  padding: 0.75rem 1rem; color: var(--text-main); font-size: 0.9rem; outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary); background: #fff;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+.input-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: -0.25rem;
+}
+
+.checkbox-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.checkbox-item:hover {
+  border-color: #c7d2fe;
+  background: #fff;
+}
+
+.checkbox-item input {
+  margin-top: 0.15rem;
+  accent-color: var(--primary);
+}
+
+.checkbox-item strong {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.checkbox-item small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.inline-input { display: flex; gap: 0.5rem; }
+.inline-input input, .inline-input select { flex: 1; }
+.stack-buttons { display: flex; flex-direction: column; gap: 1rem; }
+.divider { border: none; border-top: 1px solid var(--border-color); margin: 0.5rem 0; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.75rem 1.25rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; border: none; transition: all var(--transition-fast);
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-full { width: 100%; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-secondary { background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border-color); }
+.btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger-outline { background: #fef2f2; border: 1px solid #fca5a5; color: var(--danger); }
+.btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+
+.alert-banner {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+  padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;
+}
+.alert-banner.info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.alert-banner.warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.alert-banner.success { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+
+.response-box {
+  margin-top: 1.25rem; background: #0f172a; border: 1px solid #1e293b;
+  border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.85rem;
+  color: #34d399; max-height: 250px; overflow-y: auto; white-space: pre-wrap;
+}
+.response-box.error { color: #f87171; border-color: rgba(239,68,68,0.4); }
+.hidden { display: none !important; }
+
+.auth-page-body {
+  display: flex; align-items: center; justify-content: center;
+  width: 100vw; height: 100vh; background: #f1f5f9;
+}
+.auth-wrapper { width: 100%; max-width: 420px; padding: 1rem; }
+.auth-brand { text-align: center; margin-bottom: 1.5rem; }
+.logo-icon-lg { width: 48px; height: 48px; color: var(--primary); margin-bottom: 0.5rem; }
+.auth-brand h2 { font-size: 1.5rem; font-weight: 700; }
+.auth-brand span { color: var(--primary); }
+.auth-brand p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+.auth-card { box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
+.modal-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
+.auth-tab-btn {
+  flex: 1; padding: 0.75rem; background: none; border: none;
+  color: var(--text-muted); font-weight: 600; cursor: pointer;
+}
+.auth-tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+.auth-form { display: none; }
+.auth-form.active-form { display: block; }
+.auth-footer { margin-top: 1.5rem; text-align: center; }
+.back-link {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  color: var(--text-muted); text-decoration: none; font-size: 0.85rem; font-weight: 500;
+}
+.back-link:hover { color: var(--text-main); }
+
+.range-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.range-pill {
+  border: 1px solid var(--border-color); background: #fff; color: var(--text-muted);
+  padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.range-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.chart-wrap { position: relative; height: 320px; width: 100%; }
+.chart-wrap.tall { height: 380px; }
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+.stat-box {
+  background: #f8fafc; border: 1px solid var(--border-color);
+  border-radius: 12px; padding: 1rem;
+}
+.stat-box .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+.stat-box .value { font-size: 1.1rem; font-weight: 700; }
+.stat-box .value.up { color: var(--accent); }
+.stat-box .value.down { color: var(--danger); }
+
+.model-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+.model-card {
+  border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;
+  background: #fff;
+}
+.model-card.production { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(5,150,105,0.2); }
+.model-card h4 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.badge {
+  display: inline-flex; align-items: center; padding: 0.15rem 0.5rem;
+  border-radius: 999px; font-size: 0.7rem; font-weight: 700;
+}
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-yellow { background: #fef3c7; color: #92400e; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-gray { background: #e2e8f0; color: #475569; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+
+.table-wrap { overflow-x: auto; }
+table.data-table {
+  width: 100%; border-collapse: collapse; font-size: 0.875rem;
+}
+table.data-table th, table.data-table td {
+  text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border-color);
+}
+table.data-table th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+table.data-table tr:hover td { background: #f8fafc; }
+table.data-table .best { background: #ecfdf5; font-weight: 700; }
+
+.toolbar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+.toolbar select, .toolbar input { max-width: 220px; margin-bottom: 0; }
+
+.toast-container {
+  position: fixed; top: 1rem; right: 1rem; z-index: 1000;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.toast {
+  background: #0f172a; color: #fff; padding: 0.85rem 1rem; border-radius: 10px;
+  min-width: 260px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-size: 0.875rem;
+  animation: fadeIn 0.2s ease;
+}
+.toast.error { background: #991b1b; }
+.toast.success { background: #065f46; }
+
+.locked-panel {
+  text-align: center; padding: 3rem 1.5rem;
+  border: 1px dashed var(--border-color); border-radius: 16px; background: #fff;
+}
+.locked-panel h2 { margin: 1rem 0 0.5rem; }
+.locked-panel p { color: var(--text-muted); max-width: 420px; margin: 0 auto 1.5rem; }
+
+.action-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 8px; height: 1rem;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.empty-state {
+  text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.9rem;
+}
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 2000;
+}
+.modal {
+  background: #fff; border-radius: 16px; padding: 1.5rem; width: min(420px, 92vw);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
+.modal h3 { margin-bottom: 0.5rem; }
+.modal p { color: var(--text-muted); margin-bottom: 1.25rem; font-size: 0.9rem; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+@media (max-width: 900px) {
+  body { flex-direction: column; }
+  .sidebar {
+    position: relative; width: 100%; height: auto;
+    border-right: none; border-bottom: 1px solid var(--border-color);
+  }
+  .nav-menu { flex-direction: row; flex-wrap: wrap; }
+  .main-content { margin-left: 0; padding: 1rem; }
+}
+
+  </style>
+</head>
+<body data-page="dashboard">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <i data-lucide="trending-up" class="logo-icon"></i>
+      <h2>STOCK.ML<span></span></h2>
+    </div>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-btn active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+      <a href="predict.html" class="nav-btn" id="navPredict" data-auth="user"><i data-lucide="sparkles"></i> Predict</a>
+      <a href="admin.html" class="nav-btn" data-auth="admin"><i data-lucide="shield"></i> Admin</a>
+      <a href="auth.html" class="nav-btn" data-auth="guest"><i data-lucide="log-in"></i> Login</a>
+    </nav>
+
+    <div class="user-profile">
+      <div class="avatar" id="userAvatar">G</div>
+      <div class="user-info">
+        <span class="user-name" id="userName">Guest</span>
+        <span class="user-role" id="userRole">Public</span>
+      </div>
+      <a href="auth.html" id="authPageLink" class="icon-btn" title="Login / Register">
+        <i data-lucide="log-in"></i>
+      </a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-title">
+        <h1 id="pageTitle">Market Dashboard</h1>
+      </div>
+      
+    </header>
+
+    <div id="authPendingBanner" class="alert-banner warning hidden">
+      <i data-lucide="clock"></i>
+      <div>
+        <strong>Your account is waiting for admin authorization.</strong><br>
+        You can view the dashboard, but prediction and model training are currently unavailable.
+      </div>
+    </div>
+
+    
+
+    <div class="card" style="margin-bottom:1.5rem">
+      <div class="toolbar">
+        <div class="input-group" style="margin:0;min-width:260px">
+          <label for="companySelect">Select Company</label>
+          <select id="companySelect"></select>
+        </div>
+      </div>
+      <div id="companyOverview"></div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:1.5rem">
+      <div class="card">
+        <h3>Historical Prices</h3>
+        <p class="section-desc">Open / High / Low / Close (toggle series in legend)</p>
+        <div class="range-pills" id="historyRangePills">
+          <button class="range-pill" data-range="1M">1M</button>
+          <button class="range-pill" data-range="3M">3M</button>
+          <button class="range-pill" data-range="6M">6M</button>
+          <button class="range-pill active" data-range="1Y">1Y</button>
+          <button class="range-pill" data-range="5Y">5Y</button>
+          <button class="range-pill" data-range="ALL">ALL</button>
+        </div>
+        <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Trading Volume</h3>
+        <p class="section-desc">Daily traded quantity</p>
+        <div class="chart-wrap"><canvas id="volumeChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem">
+      <h3>Model Forecast Overview</h3>
+      <p class="section-desc">Evaluation metrics for LSTM, GRU, and Transformer when available</p>
+      <div id="forecastCards" class="model-cards"></div>
+    </div>
+
+    <div class="card">
+      <h3>Model Comparison</h3>
+      <p class="section-desc">Actual vs LSTM vs GRU vs Transformer</p>
+      <div class="range-pills" id="comparisonRangePills">
+        <button type="button" class="range-pill" data-cmp-range="1M">1M</button>
+        <button type="button" class="range-pill" data-cmp-range="3M">3M</button>
+        <button type="button" class="range-pill" data-cmp-range="6M">6M</button>
+        <button type="button" class="range-pill active" data-cmp-range="1Y">1Y</button>
+        <button type="button" class="range-pill" data-cmp-range="ALL">ALL</button>
+      </div>
+      <div id="comparisonEmpty" class="empty-state">No evaluation series available yet. Train and evaluate models from the admin panel.</div>
+      <div class="chart-wrap tall"><canvas id="comparisonChart"></canvas></div>
+    </div>
+  </main>
+
+  <script>
+(() => {
+  const state = {
+    token: localStorage.getItem('jwt_token') || null,
+    baseUrl: localStorage.getItem('api_base_url') || 'http://localhost:8000',
+    user: null,
+    charts: {},
+    pollTimers: {},
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) lucide.createIcons();
+    ensureToastHost();
+    bindBaseUrl();
+    
+    checkCurrentUser().then(() => {
+      applyNavGuards();
+      bootPage();
+    });
+  });
+
+  function ensureToastHost() {
+    if (!document.getElementById('toastContainer')) {
+      const el = document.createElement('div');
+      el.id = 'toastContainer';
+      el.className = 'toast-container';
+      document.body.appendChild(el);
+    }
+  }
+
+  function toast(message, type = 'info') {
+    const host = document.getElementById('toastContainer');
+    if (!host) return alert(message);
+    const el = document.createElement('div');
+    el.className = `toast ${type === 'error' ? 'error' : type === 'success' ? 'success' : ''}`;
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  function bindBaseUrl() {
+    const input = document.getElementById('baseUrlInput');
+    if (!input) return;
+    input.value = state.baseUrl;
+    input.addEventListener('change', (e) => {
+      state.baseUrl = e.target.value.replace(/\/$/, '');
+      localStorage.setItem('api_base_url', state.baseUrl);
+      toast('API base URL saved', 'success');
+    });
+  }
+
+  async function apiFetch(endpoint, options = {}) {
+    const url = `${state.baseUrl}${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      ...(options.headers || {}),
+    };
+    const response = await fetch(url, { ...options, headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = Array.isArray(data.detail)
+        ? data.detail.map((d) => d.msg || JSON.stringify(d)).join(', ')
+        : data.detail || data.message || `Error ${response.status}`;
+      const err = new Error(detail);
+      err.status = response.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function destroyChart(key) {
+    if (state.charts[key]) {
+      state.charts[key].destroy();
+      delete state.charts[key];
+    }
+  }
+
+  function makeChart(key, canvas, config) {
+    if (!window.Chart || !canvas) return null;
+    destroyChart(key);
+    state.charts[key] = new Chart(canvas.getContext('2d'), config);
+    return state.charts[key];
+  }
+
+  function formatRs(n) {
+    if (n == null || Number.isNaN(n)) return '—';
+    return `Rs. ${Number(n).toFixed(2)}`;
+  }
+
+  function formatPct(n) {
+    if (n == null || Number.isNaN(n)) return '—';
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${Number(n).toFixed(2)}%`;
+  }
+
+  function statusBadge(status) {
+    const s = (status || '').toLowerCase();
+    let cls = 'badge-gray';
+    if (s.includes('ready') || s.includes('evaluated') || s === 'trained' || s === 'completed') cls = 'badge-green';
+    else if (s.includes('training') || s.includes('pending') || s === 'queued') cls = 'badge-yellow';
+    else if (s.includes('fail')) cls = 'badge-red';
+    else if (s.includes('partial')) cls = 'badge-blue';
+    return `<span class="badge ${cls}">${status || 'Unknown'}</span>`;
+  }
+
+  async function checkCurrentUser() {
+    const nameEl = document.getElementById('userName');
+    const roleEl = document.getElementById('userRole');
+    const avatarEl = document.getElementById('userAvatar');
+    const statusTextEl = document.getElementById('authStatusText');
+    const authLink = document.getElementById('authPageLink');
+
+    if (!state.token) {
+      state.user = null;
+      if (statusTextEl) statusTextEl.innerText = 'Unauthenticated';
+      return null;
+    }
+
+    try {
+      const user = await apiFetch('/auth/me');
+      state.user = user;
+      if (nameEl) nameEl.innerText = user.username;
+      if (roleEl) roleEl.innerText = user.role + (user.is_authorized ? '' : ' · Pending');
+      if (avatarEl) avatarEl.innerText = (user.username || 'U')[0].toUpperCase();
+      if (statusTextEl) statusTextEl.innerText = 'Authenticated';
+      if (authLink) {
+        authLink.title = 'Logout';
+        authLink.innerHTML = '<i data-lucide="log-out"></i>';
+        authLink.href = '#';
+        authLink.onclick = async (e) => {
+          e.preventDefault();
+          try { await apiFetch('/auth/logout', { method: 'POST' }); } catch (_) {}
+          localStorage.removeItem('jwt_token');
+          state.token = null;
+          state.user = null;
+          window.location.href = 'index.html';
+        };
+        if (window.lucide) lucide.createIcons();
+      }
+      return user;
+    } catch (_) {
+      localStorage.removeItem('jwt_token');
+      state.token = null;
+      state.user = null;
+      if (statusTextEl) statusTextEl.innerText = 'Session Expired';
+      return null;
+    }
+  }
+
+  function applyNavGuards() {
+    const page = document.body.dataset.page;
+    const user = state.user;
+
+    document.querySelectorAll('[data-auth="user"]').forEach((el) => {
+      el.classList.toggle('hidden', !user || user.role === 'ADMIN');
+    });
+    document.querySelectorAll('[data-auth="guest"]').forEach((el) => {
+      el.classList.toggle('hidden', !!user);
+    });
+    document.querySelectorAll('[data-auth="admin"]').forEach((el) => {
+      el.classList.toggle('hidden', !(user && user.role === 'ADMIN'));
+    });
+    document.querySelectorAll('[data-auth="authed"]').forEach((el) => {
+      el.classList.toggle('hidden', !user);
+    });
+
+    const predictLink = document.getElementById('navPredict');
+    if (predictLink && user && user.role === 'USER' && !user.is_authorized) {
+      predictLink.innerHTML = '<i data-lucide="sparkles"></i> Predict <span class="lock-badge">🔒</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+
+    if (page === 'admin' && (!user || user.role !== 'ADMIN')) {
+      toast('Admin access required', 'error');
+      window.location.href = user ? 'index.html' : 'auth.html';
+      return;
+    }
+    if (page === 'predict' && (!user || user.role !== 'USER')) {
+      if (user && user.role === 'ADMIN') {
+        window.location.href = 'admin.html';
+        return;
+      }
+      toast('Please log in as a user to access predictions', 'error');
+      window.location.href = 'auth.html';
+    }
+  }
+
+  // -------------------- Dashboard --------------------
+  async function initDashboard() {
+    const banner = document.getElementById('authPendingBanner');
+    if (banner && state.user && state.user.role === 'USER' && !state.user.is_authorized) {
+      banner.classList.remove('hidden');
+    }
+
+    const select = document.getElementById('companySelect');
+    if (!select) return;
+
+    try {
+      const res = await apiFetch('/companies');
+      const companies = res.companies || [];
+      select.innerHTML = companies
+        .map((c) => `<option value="${c.symbol}">${c.symbol} — ${c.name}</option>`)
+        .join('');
+      if (companies.length) {
+        select.value = companies.find((c) => c.symbol === 'NABIL')?.symbol || companies[0].symbol;
+        await loadCompanyDashboard(select.value);
+      }
+    } catch (err) {
+      toast(`Failed to load companies: ${err.message}`, 'error');
+    }
+
+    select.addEventListener('change', () => loadCompanyDashboard(select.value));
+
+    document.querySelectorAll('#historyRangePills .range-pill').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('#historyRangePills .range-pill').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        await loadHistory(select.value, btn.dataset.range);
+      });
+    });
+
+    document.querySelectorAll('#comparisonRangePills .range-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#comparisonRangePills .range-pill').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (state.comparisonForecast) renderComparisonChart(state.comparisonForecast);
+      });
+    });
+
+    // Probe API
+    try {
+      await apiFetch('/');
+      const apiStatus = document.getElementById('apiStatusText');
+      if (apiStatus) apiStatus.textContent = 'Connected';
+      document.querySelector('.status-indicator')?.classList.add('online');
+    } catch (_) {
+      const apiStatus = document.getElementById('apiStatusText');
+      if (apiStatus) apiStatus.textContent = 'Offline';
+    }
+  }
+
+  async function loadCompanyDashboard(symbol) {
+    const overviewEl = document.getElementById('companyOverview');
+    const forecastEl = document.getElementById('forecastCards');
+    if (overviewEl) overviewEl.innerHTML = '<div class="skeleton" style="height:80px"></div>';
+    if (forecastEl) forecastEl.innerHTML = '<div class="empty-state">Loading forecasts…</div>';
+
+    try {
+      const [overview, forecast] = await Promise.all([
+        apiFetch(`/companies/${encodeURIComponent(symbol)}`),
+        apiFetch(`/companies/${encodeURIComponent(symbol)}/forecast`),
+      ]);
+      renderOverview(overview);
+      renderForecastCards(forecast);
+      const range = document.querySelector('#historyRangePills .range-pill.active')?.dataset.range || '1Y';
+      await loadHistory(symbol, range);
+      state.comparisonForecast = forecast;
+      renderComparisonChart(forecast);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  function renderOverview(c) {
+    const el = document.getElementById('companyOverview');
+    if (!el) return;
+    const change = c.percentage_change;
+    const changeCls = change > 0 ? 'up' : change < 0 ? 'down' : '';
+    el.innerHTML = `
+      <div class="overview-grid">
+        <div class="stat-box"><div class="label">Company</div><div class="value">${c.name || c.symbol}</div></div>
+        <div class="stat-box"><div class="label">Symbol</div><div class="value">${c.symbol}</div></div>
+        <div class="stat-box"><div class="label">Latest Price</div><div class="value">${formatRs(c.latest_price)}</div></div>
+        <div class="stat-box"><div class="label">Previous</div><div class="value">${formatRs(c.previous_price)}</div></div>
+        <div class="stat-box"><div class="label">Change</div><div class="value ${changeCls}">${formatPct(change)}</div></div>
+        <div class="stat-box"><div class="label">Volume</div><div class="value">${c.trading_volume != null ? Number(c.trading_volume).toLocaleString() : '—'}</div></div>
+        <div class="stat-box"><div class="label">Last Updated</div><div class="value" style="font-size:0.95rem">${c.last_updated || '—'}</div></div>
+        <div class="stat-box"><div class="label">Training Status</div><div class="value" style="font-size:0.95rem">${statusBadge(c.training_status)}</div></div>
+      </div>`;
+  }
+
+  function renderForecastCards(forecast) {
+    const el = document.getElementById('forecastCards');
+    if (!el) return;
+    const items = forecast.forecasts || [];
+    const current = forecast.latest_price;
+    if (!items.length) {
+      el.innerHTML = '<div class="empty-state">No forecasting results available yet.</div>';
+      return;
+    }
+      el.innerHTML = items.map((item) => {
+      const m = item.metrics;
+      const has = !!m;
+      const prod = item.is_production ? '<span class="badge badge-green">Production</span>' : '';
+      const prodReady = item.has_production_weights
+        ? '<span class="badge badge-blue">Prod weights</span>'
+        : '';
+      if (!has) {
+        return `<div class="model-card"><h4>${item.model.toUpperCase()} ${prod}</h4>
+          <p class="section-desc">${item.has_evaluation_weights || item.has_weights ? 'Evaluation trained — run Evaluate' : 'Not trained (evaluation)'}</p>
+          <p class="section-desc">Test split from ${item.test_split_date || '2025-01-01'}</p></div>`;
+      }
+      return `<div class="model-card ${item.is_production ? 'production' : ''}">
+        <h4>${item.model.toUpperCase()} ${prod} ${prodReady}</h4>
+        <p><strong>Evaluation metrics</strong> (test from ${item.test_split_date || '2025'})</p>
+        <p>Current: ${formatRs(current)}</p>
+        <p>MAE: ${m.mae?.toFixed(2)} · RMSE: ${m.rmse?.toFixed(2)}</p>
+        <p>R²: ${m.r2?.toFixed(3)} · Dir. Acc: ${m.directional_accuracy?.toFixed(2)}%</p>
+        ${m.mape != null ? `<p>MAPE: ${m.mape.toFixed(2)}%</p>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  async function loadHistory(symbol, rangeKey) {
+    try {
+      const data = await apiFetch(`/companies/${encodeURIComponent(symbol)}/data?range=${encodeURIComponent(rangeKey)}`);
+      const points = data.points || [];
+      const labels = points.map((p) => p.date);
+      const closes = points.map((p) => p.close);
+      const volumes = points.map((p) => p.volume);
+      const opens = points.map((p) => p.open);
+      const highs = points.map((p) => p.high);
+      const lows = points.map((p) => p.low);
+
+      makeChart('price', document.getElementById('priceChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Close', data: closes, borderColor: '#4f46e5', tension: 0.15, pointRadius: 0, borderWidth: 2 },
+            { label: 'Open', data: opens, borderColor: '#94a3b8', tension: 0.15, pointRadius: 0, borderWidth: 1, hidden: true },
+            { label: 'High', data: highs, borderColor: '#059669', tension: 0.15, pointRadius: 0, borderWidth: 1, hidden: true },
+            { label: 'Low', data: lows, borderColor: '#dc2626', tension: 0.15, pointRadius: 0, borderWidth: 1, hidden: true },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { x: { ticks: { maxTicksLimit: 8 } } },
+        },
+      });
+
+      makeChart('volume', document.getElementById('volumeChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ label: 'Volume', data: volumes, backgroundColor: 'rgba(79,70,229,0.35)' }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { ticks: { maxTicksLimit: 8 } } },
+        },
+      });
+    } catch (err) {
+      toast(`History: ${err.message}`, 'error');
+    }
+  }
+
+  function sliceSeriesByRange(series, rangeKey) {
+    if (!series?.dates?.length) return series;
+    const key = (rangeKey || '1Y').toUpperCase().replace('YR', 'Y');
+    if (key === 'ALL') return series;
+
+    const months = { '1M': 1, '3M': 3, '6M': 6, '1Y': 12 }[key];
+    if (!months) return series;
+
+    const end = new Date(series.dates[series.dates.length - 1]);
+    if (Number.isNaN(end.getTime())) return series;
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - months);
+
+    const dates = [];
+    const actual = [];
+    const predicted = series.predicted ? [] : undefined;
+    series.dates.forEach((d, i) => {
+      const dt = new Date(d);
+      if (Number.isNaN(dt.getTime()) || dt < start) return;
+      dates.push(d);
+      if (series.actual) actual.push(series.actual[i]);
+      if (predicted) predicted.push(series.predicted[i]);
+    });
+    return {
+      ...series,
+      dates,
+      actual: series.actual ? actual : series.actual,
+      predicted: predicted || series.predicted,
+    };
+  }
+
+  function renderComparisonChart(forecast) {
+    const canvas = document.getElementById('comparisonChart');
+    if (!canvas) return;
+    const items = (forecast.forecasts || []).filter((f) => f.series && f.series.dates?.length);
+    if (!items.length) {
+      destroyChart('comparison');
+      const empty = document.getElementById('comparisonEmpty');
+      if (empty) {
+        empty.classList.remove('hidden');
+        empty.textContent = 'No evaluation series available yet. Train and evaluate models from the admin panel.';
+      }
+      return;
+    }
+    document.getElementById('comparisonEmpty')?.classList.add('hidden');
+
+    const range = document.querySelector('#comparisonRangePills .range-pill.active')?.dataset.cmpRange || '1Y';
+    const slicedItems = items.map((item) => ({
+      ...item,
+      series: sliceSeriesByRange(item.series, range),
+    })).filter((item) => item.series.dates?.length);
+
+    if (!slicedItems.length) {
+      destroyChart('comparison');
+      const empty = document.getElementById('comparisonEmpty');
+      if (empty) {
+        empty.classList.remove('hidden');
+        empty.textContent = `No evaluation points in the selected ${range} range.`;
+      }
+      return;
+    }
+
+    const base = slicedItems[0].series;
+    const colors = { lstm: '#f97316', gru: '#16a34a', transformer: '#dc2626' };
+    const styles = { lstm: [6, 4], gru: [2, 3], transformer: [8, 3, 2, 3] };
+    const datasets = [
+      {
+        label: 'Actual Price',
+        data: base.actual,
+        borderColor: '#2563eb',
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.1,
+      },
+    ];
+    slicedItems.forEach((item) => {
+      datasets.push({
+        label: `${item.model.toUpperCase()} Prediction`,
+        data: item.series.predicted,
+        borderColor: colors[item.model] || '#64748b',
+        borderDash: styles[item.model] || [],
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.1,
+      });
+    });
+
+    makeChart('comparison', canvas, {
+      type: 'line',
+      data: { labels: base.dates, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: {
+            display: true,
+            text: `${forecast.symbol} Actual vs Predictions (${range})`,
+          },
+          legend: { position: 'top' },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Date' }, ticks: { maxTicksLimit: 10 } },
+          y: { title: { display: true, text: 'Stock Price' } },
+        },
+      },
+    });
+  }
+
+  async function bootPage() {
+    await initDashboard();
+  }
+
+  window.StockPulse = { apiFetch, toast };
+})();
+
+  </script>
+</body>
+</html>

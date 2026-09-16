@@ -22,7 +22,11 @@ from backend.services.companies import (
 )
 from backend.services.prediction import run_company_evaluation
 from backend.services.training import (
+    cancel_training_job,
+    clear_failed_training_jobs,
+    clear_stale_training_jobs,
     create_training_job,
+    delete_training_job,
     job_to_dict,
     list_jobs,
     start_training_job,
@@ -44,6 +48,10 @@ class TrainRequest(BaseModel):
     company: str | list[str]
     model: str | list[str]
     epochs: int = Field(default=100, ge=1, le=300)
+    purpose: str = Field(
+        default=PURPOSE_EVALUATION,
+        description="evaluation = held-out test; production = all available data",
+    )
 
 
 class ProductionRequest(BaseModel):
@@ -53,6 +61,19 @@ class ProductionRequest(BaseModel):
 
 def _as_list(value: str | list[str]) -> list[str]:
     return value if isinstance(value, list) else [value]
+
+
+def _parse_purpose(purpose: str) -> bool:
+    """Return include_test flag for the given purpose."""
+    value = (purpose or PURPOSE_EVALUATION).strip().lower()
+    if value in (PURPOSE_EVALUATION, "eval"):
+        return True
+    if value in (PURPOSE_PRODUCTION, "prod"):
+        return False
+    raise HTTPException(
+        status_code=400,
+        detail=f"Unsupported purpose: {purpose}. Use 'evaluation' or 'production'.",
+    )
 
 
 # ---------- Overview ----------
@@ -505,6 +526,56 @@ def admin_training_jobs(
     return {"jobs": list_jobs(db)}
 
 
+@router.post("/training/jobs/clear-stale")
+def admin_clear_stale_jobs(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    cleared = clear_stale_training_jobs(db)
+    return {
+        "message": f"Cleared {cleared} stale training job(s)",
+        "cleared": cleared,
+    }
+
+
+@router.post("/training/jobs/clear-failed")
+def admin_clear_failed_jobs(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    cleared = clear_failed_training_jobs(db)
+    return {
+        "message": f"Cleared {cleared} failed training job(s)",
+        "cleared": cleared,
+    }
+
+
+@router.delete("/training/jobs/{job_id}")
+def admin_delete_training_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    try:
+        delete_training_job(db, job_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {"message": f"Job {job_id} deleted"}
+
+
+@router.post("/training/jobs/{job_id}/cancel")
+def admin_cancel_training_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    try:
+        job = cancel_training_job(db, job_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {"message": f"Job {job_id} cancelled", "job": job_to_dict(job)}
+
+
 @router.post("/training")
 def admin_start_training(
     payload: TrainRequest,
@@ -513,6 +584,8 @@ def admin_start_training(
 ):
     companies = _as_list(payload.company)
     models = _as_list(payload.model)
+    include_test = _parse_purpose(payload.purpose)
+    purpose = PURPOSE_EVALUATION if include_test else PURPOSE_PRODUCTION
 
     queued = []
     errors = []
@@ -540,7 +613,7 @@ def admin_start_training(
                     company=company,
                     model_type=model,
                     user_id=admin.id,
-                    include_test=True,
+                    include_test=include_test,
                     epochs=payload.epochs,
                 )
             except ValueError as exc:
@@ -560,7 +633,8 @@ def admin_start_training(
         raise HTTPException(status_code=409, detail=errors[0]["error"])
 
     return {
-        "message": "Training queued",
+        "message": f"{purpose.title()} training queued",
+        "purpose": purpose,
         "queued": queued,
         "errors": errors,
         "job": queued[0] if len(queued) == 1 else None,
@@ -572,7 +646,10 @@ def train_all_admin(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
     epochs: int = Query(100, ge=1, le=300),
+    purpose: str = Query(PURPOSE_EVALUATION),
 ):
+    include_test = _parse_purpose(purpose)
+    purpose_label = PURPOSE_EVALUATION if include_test else PURPOSE_PRODUCTION
     queued = []
     errors = []
     for company in db.query(Company).all():
@@ -583,7 +660,7 @@ def train_all_admin(
                     company=company,
                     model_type=model_name,
                     user_id=admin.id,
-                    include_test=True,
+                    include_test=include_test,
                     epochs=epochs,
                 )
                 start_training_job(job.id)
@@ -597,7 +674,8 @@ def train_all_admin(
                     }
                 )
     return {
-        "message": "Training jobs queued",
+        "message": f"{purpose_label.title()} training jobs queued",
+        "purpose": purpose_label,
         "queued": queued,
         "errors": errors,
     }
@@ -643,6 +721,7 @@ def train_all_for_company_legacy(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
     epochs: int = Query(100, ge=1, le=300),
+    purpose: str = Query(PURPOSE_EVALUATION),
 ):
     # Avoid swallowing dedicated paths
     reserved = {
@@ -663,6 +742,8 @@ def train_all_for_company_legacy(
     if not company:
         raise HTTPException(status_code=400, detail=f"Unsupported company: {data}")
 
+    include_test = _parse_purpose(purpose)
+    purpose_label = PURPOSE_EVALUATION if include_test else PURPOSE_PRODUCTION
     results = []
     for model_name in MODEL_TYPES:
         try:
@@ -671,7 +752,7 @@ def train_all_for_company_legacy(
                 company=company,
                 model_type=model_name,
                 user_id=admin.id,
-                include_test=True,
+                include_test=include_test,
                 epochs=epochs,
             )
             start_training_job(job.id)
@@ -682,7 +763,8 @@ def train_all_for_company_legacy(
             )
 
     return {
-        "response": f"Training queued for all models on {data}",
+        "response": f"{purpose_label.title()} training queued for all models on {data}",
+        "purpose": purpose_label,
         "results": results,
     }
 

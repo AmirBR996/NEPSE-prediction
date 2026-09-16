@@ -61,11 +61,25 @@ def resolve_scaler_paths(symbol: str, purpose: str) -> tuple[Path, Path]:
     sx, sy = scaler_paths(symbol, purpose)
     if sx.exists() and sy.exists():
         return sx, sy
+
+    # Compatibility fallback: production can reuse evaluation scalers.
+    if purpose == PURPOSE_PRODUCTION:
+        ex, ey = scaler_paths(symbol, PURPOSE_EVALUATION)
+        if ex.exists() and ey.exists():
+            return ex, ey
+
     if purpose == PURPOSE_EVALUATION:
         legacy_dir = PROJECT_ROOT / "trained_models" / symbol.upper()
         lsx, lsy = legacy_dir / "scaler_X.joblib", legacy_dir / "scaler_y.joblib"
         if lsx.exists() and lsy.exists():
             return lsx, lsy
+
+    # Legacy global fallback used by earlier single-company training setups.
+    gx = PROJECT_ROOT / "scaler_files" / "scaler_X.joblib"
+    gy = PROJECT_ROOT / "scaler_files" / "scaler_y.joblib"
+    if gx.exists() and gy.exists():
+        return gx, gy
+
     raise FileNotFoundError(
         f"No {purpose} scalers found for {symbol}"
     )
