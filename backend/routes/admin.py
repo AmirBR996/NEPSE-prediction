@@ -76,9 +76,6 @@ def _parse_purpose(purpose: str) -> bool:
     )
 
 
-# ---------- Overview ----------
-
-
 @router.get("/stats")
 def admin_stats(
     db: Session = Depends(get_db),
@@ -152,9 +149,6 @@ def system_status(
         "models_tracked": db.query(ModelRecord).count(),
         "evaluations": db.query(ModelEvaluation).count(),
     }
-
-
-# ---------- Users ----------
 
 
 @router.get("/users")
@@ -245,9 +239,6 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"message": "User deleted", "id": user_id}
-
-
-# ---------- Companies ----------
 
 
 @router.get("/companies")
@@ -343,9 +334,6 @@ def admin_evaluate_company(
         return run_company_evaluation(db, company)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-
-
-# ---------- Models ----------
 
 
 @router.get("/models")
@@ -467,9 +455,6 @@ def set_company_production(
     }
 
 
-# ---------- Evaluation ----------
-
-
 @router.get("/evaluations/{company_id}")
 def get_evaluations(
     company_id: str,
@@ -513,9 +498,6 @@ def evaluate_company_legacy(
         return run_company_evaluation(db, company)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-
-
-# ---------- Training ----------
 
 
 @router.get("/training/jobs")

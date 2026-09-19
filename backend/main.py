@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.database import Base, SessionLocal, engine
-from backend import model  # noqa: F401 - register SQLAlchemy models
+from backend import model
 from backend.routes.scrape import router as scrape_router
 from backend.routes.train import router as train_router
 from backend.routes.auth import router as auth_router
@@ -30,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 1. Include API Routers
 app.include_router(auth_router)
 app.include_router(companies_router)
 app.include_router(predictions_router)
@@ -58,7 +57,6 @@ def on_startup():
 FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend" / "pages"
 
 
-# 2. Serve dashboard (index.html) at the root route
 @app.get("/", response_class=FileResponse)
 def root():
     index_file = FRONTEND_DIR / "index.html"
@@ -71,6 +69,5 @@ def root():
     }
 
 
-# 3. Mount self-contained HTML pages at "/" (each page inlines its own CSS/JS)
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

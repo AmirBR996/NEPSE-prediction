@@ -3,25 +3,13 @@ import requests
 from config.headers import headers
 
 _TOKEN_RE = re.compile(r'name="_token"\s+value="([^"]+)"')
-_COMPANYID_RE = re.compile(r'id="companyid"[^>]*>\s*([0-9]+)')
-_SYMBOL_RE = re.compile(r'id="symbol"[^>]*>\s*([A-Za-z0-9]+)')
 
 BASE = "https://www.sharesansar.com"
-TIMEOUT = 30  
+TIMEOUT = 30
 
 
 def extract_token(html):
     m = _TOKEN_RE.search(html)
-    return m.group(1) if m else None
-
-
-def extract_companyid(html):
-    m = _COMPANYID_RE.search(html)
-    return m.group(1) if m else None
-
-
-def extract_symbol(html):
-    m = _SYMBOL_RE.search(html)
     return m.group(1) if m else None
 
 

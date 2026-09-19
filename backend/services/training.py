@@ -1,6 +1,5 @@
 import threading
 from datetime import datetime, timezone
-from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -16,7 +15,6 @@ from ml.model_paths import (
 from ml.train_pipeline.train import main as admin_train_main
 from ml.train_pipeline.user_train import main as user_train_main
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _lock = threading.Lock()
 _active_threads: dict[int, threading.Thread] = {}
 

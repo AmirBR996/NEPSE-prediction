@@ -91,7 +91,6 @@ def me(user: User = Depends(require_user)):
 
 @router.post("/logout")
 def logout(user: User = Depends(require_user)):
-    # JWT is stateless; client discards token. Endpoint exists for API completeness.
     return {"message": "Logged out successfully", "username": user.username}
 
 

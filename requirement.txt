@@ -1,17 +1,11 @@
 pandas
 requests
-lxml
-beautifulsoup4
-black
 scikit-learn
 torch
-matplotlib
 joblib
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 pydantic>=2.0
-python-multipart>=0.0.6
 sqlalchemy
 python-jose[cryptography]
 pwdlib[argon2]
-httpx

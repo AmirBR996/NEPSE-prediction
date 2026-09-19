@@ -34,7 +34,6 @@ def main(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Evaluation = held-out test split; Production = train on all data
     if purpose is None:
         purpose = PURPOSE_EVALUATION if include_test else PURPOSE_PRODUCTION
     include_test = purpose == PURPOSE_EVALUATION
@@ -111,7 +110,6 @@ def main(
 
         train_loss /= len(train_loader)
 
-        # Evaluation Phase
         model.eval()
         test_loss = 0.0
         if test_loader is not None:

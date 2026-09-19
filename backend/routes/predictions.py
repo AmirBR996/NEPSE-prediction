@@ -88,8 +88,6 @@ def get_prediction(
     if not row:
         raise HTTPException(status_code=404, detail="Prediction not found")
 
-    import json
-
     payload = {}
     if row.result_json:
         try:

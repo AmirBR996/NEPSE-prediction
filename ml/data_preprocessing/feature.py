@@ -41,7 +41,6 @@ def splitting_and_processing(df,seq_length=30,include_test=True,test_split_date=
     y_scaler=StandardScaler()
 
     if include_test:
-        # Evaluation split: train before split_date, test from split_date onward
         train=df[df["published_date"]<split_date].copy()
         test=df[df["published_date"]>=split_date].copy()
 

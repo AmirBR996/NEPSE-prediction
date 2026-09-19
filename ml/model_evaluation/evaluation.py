@@ -7,10 +7,6 @@ PROJECT_ROOT=ML_ROOT.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0,str(PROJECT_ROOT))
 
-import joblib
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
